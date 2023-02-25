@@ -1,0 +1,291 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Jake Potrebic <jake.m.potrebic@gmail.com>
+Date: Sat, 25 Feb 2023 13:45:44 -0800
+Subject: [PATCH] Registry Modification API
+
+
+diff --git a/src/main/java/io/papermc/paper/plugin/bootstrap/PluginBootstrap.java b/src/main/java/io/papermc/paper/plugin/bootstrap/PluginBootstrap.java
+index ea84b11e8682e73fcd563fec65e76b707546a99e..702f532fffb9bf4545f9496fc2beadb0622c127e 100644
+--- a/src/main/java/io/papermc/paper/plugin/bootstrap/PluginBootstrap.java
++++ b/src/main/java/io/papermc/paper/plugin/bootstrap/PluginBootstrap.java
+@@ -1,6 +1,7 @@
+ package io.papermc.paper.plugin.bootstrap;
+ 
+ import io.papermc.paper.plugin.provider.util.ProviderUtil;
++import io.papermc.paper.registry.RegistryListenerManager;
+ import org.bukkit.plugin.java.JavaPlugin;
+ import org.jetbrains.annotations.ApiStatus;
+ import org.jetbrains.annotations.NotNull;
+@@ -26,6 +27,9 @@ public interface PluginBootstrap {
+      */
+     void bootstrap(@NotNull PluginProviderContext context);
+ 
++    default void registryStuff(final RegistryListenerManager manager) {
++    }
++
+     /**
+      * Called by the server to instantiate your main class.
+      * Plugins may override this logic to define custom creation logic for said instance, like passing addition
+diff --git a/src/main/java/io/papermc/paper/registry/RegistryAccess.java b/src/main/java/io/papermc/paper/registry/RegistryAccess.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..f8ca8b4ea9bc6a11cb483cd01cca26687280158a
+--- /dev/null
++++ b/src/main/java/io/papermc/paper/registry/RegistryAccess.java
+@@ -0,0 +1,20 @@
++package io.papermc.paper.registry;
++
++import net.kyori.adventure.util.Services;
++import org.bukkit.Keyed;
++import org.bukkit.Registry;
++import org.jetbrains.annotations.ApiStatus;
++import org.jetbrains.annotations.NotNull;
++import org.jetbrains.annotations.Nullable;
++
++/**
++ * Replacement for {@link org.bukkit.Bukkit#getRegistry(Class)}.
++ */
++@ApiStatus.NonExtendable
++@ApiStatus.Experimental
++public interface RegistryAccess {
++
++    RegistryAccess INSTANCE = Services.service(RegistryAccess.class).orElseThrow();
++
++    <T extends Keyed> @Nullable Registry<T> getRegistry(@NotNull Class<T> type);
++}
+diff --git a/src/main/java/io/papermc/paper/registry/RegistryBuilder.java b/src/main/java/io/papermc/paper/registry/RegistryBuilder.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..db139967ab1e31bc949916bf5849224f3083ca04
+--- /dev/null
++++ b/src/main/java/io/papermc/paper/registry/RegistryBuilder.java
+@@ -0,0 +1,12 @@
++package io.papermc.paper.registry;
++
++import org.jetbrains.annotations.ApiStatus;
++
++/**
++ * To be implemented by any type used for modifying registries.
++ */
++@ApiStatus.NonExtendable
++@ApiStatus.Experimental
++public interface RegistryBuilder {
++
++}
+diff --git a/src/main/java/io/papermc/paper/registry/RegistryKey2.java b/src/main/java/io/papermc/paper/registry/RegistryKey2.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..095161aa3e7d63b64594d2c7f6d72c2b7c572e5b
+--- /dev/null
++++ b/src/main/java/io/papermc/paper/registry/RegistryKey2.java
+@@ -0,0 +1,31 @@
++package io.papermc.paper.registry;
++
++import org.bukkit.GameEvent;
++import org.bukkit.Keyed;
++import org.bukkit.NamespacedKey;
++import org.jetbrains.annotations.ApiStatus;
++
++@ApiStatus.Experimental
++public final class RegistryKey2<T extends Keyed, B extends RegistryBuilder> { // TODO rename once the server class of the same name is removed (there's an open PR)
++
++    public static final RegistryKey2<GameEvent, GameEvent.Builder> GAME_EVENT = new RegistryKey2<>(NamespacedKey.minecraft("game_event"), GameEvent.class, GameEvent.Builder.class);
++
++    public final NamespacedKey key;
++    public final Class<T> type;
++    public final Class<B> builderType;
++
++    private RegistryKey2(final NamespacedKey key, final Class<T> type, Class<B> builderType) {
++        this.key = key;
++        this.type = type;
++        this.builderType = builderType;
++    }
++
++    @Override
++    public String toString() {
++        return "RegistryKey2{" +
++            "key=" + this.key +
++            ", type=" + this.type +
++            ", builderType=" + this.builderType +
++            '}';
++    }
++}
+diff --git a/src/main/java/io/papermc/paper/registry/RegistryListener.java b/src/main/java/io/papermc/paper/registry/RegistryListener.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..6c422475673d85cc32146c8a3f3393a98589b819
+--- /dev/null
++++ b/src/main/java/io/papermc/paper/registry/RegistryListener.java
+@@ -0,0 +1,38 @@
++package io.papermc.paper.registry;
++
++import org.bukkit.Keyed;
++import org.jetbrains.annotations.ApiStatus;
++
++@ApiStatus.NonExtendable
++@ApiStatus.Experimental
++public sealed interface RegistryListener<B extends RegistryBuilder> permits RegistryListener.Modification, RegistryListener.Freeze {
++
++    /**
++     * Called before any object is added to the registry (including ones
++     * from any {@link Freeze} listeners).
++     *
++     * @param <B> builder type
++     */
++    @ApiStatus.OverrideOnly
++    @ApiStatus.Experimental
++    @FunctionalInterface
++    non-sealed interface Modification<B extends RegistryBuilder> extends RegistryListener<B> {
++
++        void onRegister(B builder);
++    }
++
++    /**
++     * Called after all other objects have been added to a registry (from
++     * built-in sources or datapacks depending on the registry type).
++     *
++     * @param <T> object type
++     * @param <B> builder type
++     */
++    @ApiStatus.OverrideOnly
++    @ApiStatus.Experimental
++    @FunctionalInterface
++    non-sealed interface Freeze<T extends Keyed, B extends RegistryBuilder> extends RegistryListener<B> {
++
++        void beforeFreeze(WritableRegistry<T, B> registry);
++    }
++}
+diff --git a/src/main/java/io/papermc/paper/registry/RegistryListenerManager.java b/src/main/java/io/papermc/paper/registry/RegistryListenerManager.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..75f119cd68fe383a6c751c5c49e49268570c2d89
+--- /dev/null
++++ b/src/main/java/io/papermc/paper/registry/RegistryListenerManager.java
+@@ -0,0 +1,15 @@
++package io.papermc.paper.registry;
++
++import org.bukkit.Keyed;
++import org.jetbrains.annotations.ApiStatus;
++import org.jetbrains.annotations.NotNull;
++
++/**
++ * Register listeners to points in a registry's lifecycle.
++ */
++@ApiStatus.NonExtendable
++@ApiStatus.Experimental
++public interface RegistryListenerManager {
++
++    <T extends Keyed, B extends RegistryBuilder> void registerListener(@NotNull RegistryKey2<T, B> registryKey, @NotNull RegistryListener<B> listener);
++}
+diff --git a/src/main/java/io/papermc/paper/registry/WritableRegistry.java b/src/main/java/io/papermc/paper/registry/WritableRegistry.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..da4bf52bb23761e271d3016b1da37e79d7264071
+--- /dev/null
++++ b/src/main/java/io/papermc/paper/registry/WritableRegistry.java
+@@ -0,0 +1,21 @@
++package io.papermc.paper.registry;
++
++import org.bukkit.Keyed;
++import org.bukkit.NamespacedKey;
++import org.bukkit.Registry;
++import org.bukkit.util.Consumer;
++import org.jetbrains.annotations.ApiStatus;
++
++/**
++ * Represents a registry in a modifiable state.
++ *
++ * @param <T> value type
++ * @param <B> builder type
++ */
++@ApiStatus.NonExtendable
++@ApiStatus.Experimental
++public interface WritableRegistry<T extends Keyed, B extends RegistryBuilder> extends Registry<T> {
++
++    boolean add(NamespacedKey key, Consumer<? super B> value);
++
++}
+diff --git a/src/main/java/org/bukkit/GameEvent.java b/src/main/java/org/bukkit/GameEvent.java
+index 4808824a55628d1e2344981d40d3665d572117e0..1ca1613667ee7b93848d953b1d0805bcf53b733b 100644
+--- a/src/main/java/org/bukkit/GameEvent.java
++++ b/src/main/java/org/bukkit/GameEvent.java
+@@ -10,7 +10,8 @@ import org.jetbrains.annotations.Nullable;
+ /**
+  * Represents a generic Mojang game event.
+  */
+-public final class GameEvent implements Keyed {
++@org.jetbrains.annotations.ApiStatus.NonExtendable // Paper
++public class GameEvent implements Keyed { // Paper
+ 
+     private static final Map<NamespacedKey, GameEvent> GAME_EVENTS = new HashMap<>();
+     //
+@@ -93,7 +94,8 @@ public final class GameEvent implements Keyed {
+     //
+     private final NamespacedKey key;
+ 
+-    private GameEvent(NamespacedKey key) {
++    @org.jetbrains.annotations.ApiStatus.Internal // Paper
++    protected GameEvent(NamespacedKey key) { // Paper
+         this.key = key;
+ 
+         GAME_EVENTS.put(key, this);
+@@ -129,4 +131,16 @@ public final class GameEvent implements Keyed {
+     private static GameEvent getEvent(String vanilla) {
+         return new GameEvent(NamespacedKey.minecraft(vanilla));
+     }
++    // Paper start
++    @org.jetbrains.annotations.ApiStatus.Experimental
++    @org.jetbrains.annotations.ApiStatus.NonExtendable
++    public interface Builder extends io.papermc.paper.registry.RegistryBuilder {
++
++        NamespacedKey key();
++
++        int range();
++
++        Builder range(int range);
++    }
++    // Paper end
+ }
+diff --git a/src/main/java/org/bukkit/Registry.java b/src/main/java/org/bukkit/Registry.java
+index 3dc747080b7bfea4b04b5a47cc7ae4698c758802..d2f537941d892b42298e8f4b9fa335eb2d499324 100644
+--- a/src/main/java/org/bukkit/Registry.java
++++ b/src/main/java/org/bukkit/Registry.java
+@@ -136,13 +136,13 @@ public interface Registry<T extends Keyed> extends Iterable<T> {
+      *
+      * @see Structure
+      */
+-    Registry<Structure> STRUCTURE = Bukkit.getRegistry(Structure.class);
++    Registry<Structure> STRUCTURE = io.papermc.paper.registry.RegistryAccess.INSTANCE.getRegistry(Structure.class); // Paper
+     /**
+      * Server structure types.
+      *
+      * @see StructureType
+      */
+-    Registry<StructureType> STRUCTURE_TYPE = Bukkit.getRegistry(StructureType.class);
++    Registry<StructureType> STRUCTURE_TYPE = io.papermc.paper.registry.RegistryAccess.INSTANCE.getRegistry(StructureType.class); // Paper
+     /**
+      * Sound keys.
+      *
+@@ -197,26 +197,13 @@ public interface Registry<T extends Keyed> extends Iterable<T> {
+      *
+      * @see GameEvent
+      */
+-    Registry<GameEvent> GAME_EVENT = new Registry<GameEvent>() {
+-
+-        @NotNull
+-        @Override
+-        public Iterator iterator() {
+-            return GameEvent.values().iterator();
+-        }
+-
+-        @Nullable
+-        @Override
+-        public GameEvent get(@NotNull NamespacedKey key) {
+-            return GameEvent.getByKey(key);
+-        }
+-    };
++    Registry<GameEvent> GAME_EVENT = io.papermc.paper.registry.RegistryAccess.INSTANCE.getRegistry(GameEvent.class); // Paper
+     // Paper start
+     /**
+      * Configured structures.
+      * @see io.papermc.paper.world.structure.ConfiguredStructure
+      */
+-    Registry<io.papermc.paper.world.structure.ConfiguredStructure> CONFIGURED_STRUCTURE = Bukkit.getRegistry(io.papermc.paper.world.structure.ConfiguredStructure.class);
++    Registry<io.papermc.paper.world.structure.ConfiguredStructure> CONFIGURED_STRUCTURE = io.papermc.paper.registry.RegistryAccess.INSTANCE.getRegistry(io.papermc.paper.world.structure.ConfiguredStructure.class); // Paper
+     /**
+      * Potion effect types.
+      *
