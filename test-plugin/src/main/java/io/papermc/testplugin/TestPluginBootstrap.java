@@ -29,13 +29,13 @@ public class TestPluginBootstrap implements PluginBootstrap {
 
         @Override
         public void beforeFreeze(WritableRegistry<GameEvent, GameEvent.Builder> registry) {
-            registry.add(NEW_EVENT, builder -> {
+            registry.register(NEW_EVENT, builder -> {
                 builder.range(2);
             });
         }
     }
 
-    private static final class Test2 implements RegistryListener.Modification<GameEvent.Builder> {
+    private static final class Test2 implements RegistryListener.Modification<GameEvent, GameEvent.Builder> {
 
         @Override
         public void onRegister(GameEvent.Builder builder) {

@@ -4,6 +4,50 @@ Date: Sat, 25 Feb 2023 13:46:14 -0800
 Subject: [PATCH] Registry Modification API
 
 
+diff --git a/src/main/java/io/papermc/paper/plugin/entrypoint/LaunchEntryPointHandler.java b/src/main/java/io/papermc/paper/plugin/entrypoint/LaunchEntryPointHandler.java
+index 6c0f2c315387734f8dd4a7eca633aa0a9856dd17..48bc745ca9632fc46b5f786ff570434702eb47f2 100644
+--- a/src/main/java/io/papermc/paper/plugin/entrypoint/LaunchEntryPointHandler.java
++++ b/src/main/java/io/papermc/paper/plugin/entrypoint/LaunchEntryPointHandler.java
+@@ -4,6 +4,8 @@ import io.papermc.paper.plugin.provider.PluginProvider;
+ import io.papermc.paper.plugin.storage.BootstrapProviderStorage;
+ import io.papermc.paper.plugin.storage.ProviderStorage;
+ import io.papermc.paper.plugin.storage.ServerPluginProviderStorage;
++import it.unimi.dsi.fastutil.objects.Object2BooleanMap;
++import it.unimi.dsi.fastutil.objects.Object2BooleanOpenHashMap;
+ import org.jetbrains.annotations.ApiStatus;
+ 
+ import java.util.HashMap;
+@@ -16,9 +18,11 @@ public class LaunchEntryPointHandler implements EntrypointHandler {
+ 
+     public static final LaunchEntryPointHandler INSTANCE = new LaunchEntryPointHandler();
+     private final Map<Entrypoint<?>, ProviderStorage<?>> storage = new HashMap<>();
++    private final Object2BooleanMap<Entrypoint<?>> enteredMap = new Object2BooleanOpenHashMap<>();
+ 
+     LaunchEntryPointHandler() {
+         this.populateProviderStorage();
++        this.enteredMap.defaultReturnValue(false);
+     }
+ 
+     // Utility
+@@ -34,6 +38,7 @@ public class LaunchEntryPointHandler implements EntrypointHandler {
+         }
+ 
+         storage.enter();
++        this.enteredMap.put(entrypoint, true);
+     }
+ 
+     @Override
+@@ -57,6 +62,10 @@ public class LaunchEntryPointHandler implements EntrypointHandler {
+         return storage;
+     }
+ 
++    public boolean hasEntered(Entrypoint<?> entrypoint) {
++        return this.enteredMap.getBoolean(entrypoint);
++    }
++
+     // Reload only
+     public void populateProviderStorage() {
+         this.storage.put(Entrypoint.BOOTSTRAPPER, new BootstrapProviderStorage());
 diff --git a/src/main/java/io/papermc/paper/plugin/storage/BootstrapProviderStorage.java b/src/main/java/io/papermc/paper/plugin/storage/BootstrapProviderStorage.java
 index e5b70ff297febd936e64055b79f48712d65dbed9..a1b39750ab576e8d83826e8932547f81db8b22b2 100644
 --- a/src/main/java/io/papermc/paper/plugin/storage/BootstrapProviderStorage.java
@@ -98,27 +142,23 @@ index 0000000000000000000000000000000000000000..0e6253a2e35eb9701bd007f157fa789c
 +}
 diff --git a/src/main/java/io/papermc/paper/registry/PaperRegistryListenerManager.java b/src/main/java/io/papermc/paper/registry/PaperRegistryListenerManager.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..10daad06bc4563db4a7861be8f33f0ebca6f6bd5
+index 0000000000000000000000000000000000000000..903535511a4fa7a389ec86e43faa2f79e7c06271
 --- /dev/null
 +++ b/src/main/java/io/papermc/paper/registry/PaperRegistryListenerManager.java
-@@ -0,0 +1,88 @@
+@@ -0,0 +1,84 @@
 +package io.papermc.paper.registry;
 +
++import com.google.common.base.Preconditions;
 +import io.papermc.paper.plugin.configuration.PluginMeta;
++import io.papermc.paper.plugin.entrypoint.Entrypoint;
++import io.papermc.paper.plugin.entrypoint.LaunchEntryPointHandler;
 +import io.papermc.paper.world.PaperGameEvent;
-+import net.minecraft.world.level.gameevent.GameEvent;
 +import org.bukkit.Keyed;
-+import org.bukkit.NamespacedKey;
-+import org.bukkit.Registry;
-+import org.bukkit.util.Consumer;
 +import org.checkerframework.checker.nullness.qual.NonNull;
 +import org.checkerframework.framework.qual.DefaultQualifier;
-+import org.jetbrains.annotations.NotNull;
-+import org.jetbrains.annotations.Nullable;
 +
 +import java.util.ArrayList;
 +import java.util.IdentityHashMap;
-+import java.util.Iterator;
 +import java.util.List;
 +import java.util.Map;
 +
@@ -127,8 +167,8 @@ index 0000000000000000000000000000000000000000..10daad06bc4563db4a7861be8f33f0eb
 +
 +    public static final PaperRegistryListenerManager INSTANCE = new PaperRegistryListenerManager();
 +
-+    private final Map<RegistryKey2<?, ?>, List<RegisteredListener<RegistryListener.Freeze<?, ?>>>> freezes = new IdentityHashMap<>();
-+    private final Map<RegistryKey2<?, ?>, List<RegisteredListener<RegistryListener.Modification<?>>>> modifications = new IdentityHashMap<>();
++    private final Map<RegistryKey2<?>, List<RegisteredListener<RegistryListener.Freeze<?, ?>>>> freezes = new IdentityHashMap<>();
++    private final Map<RegistryKey2<?>, List<RegisteredListener<RegistryListener.Modification<?, ?>>>> modifications = new IdentityHashMap<>();
 +
 +    private PaperRegistryListenerManager() {
 +    }
@@ -137,20 +177,21 @@ index 0000000000000000000000000000000000000000..10daad06bc4563db4a7861be8f33f0eb
 +        return new PluginRegistryListenerManager(pluginMeta);
 +    }
 +
-+    private record RegisteredListener<L extends RegistryListener<?>>(PluginMeta pluginMeta, L listener) {
++    private record RegisteredListener<L>(PluginMeta pluginMeta, L listener) {
 +    }
 +
-+    public <T extends Keyed, B extends RegistryBuilder> B runModificationListeners(final RegistryKey2<T, ? super B> registryKey, final B builder) {
++    public <T extends Keyed, B extends RegistryBuilder<T>> B runModificationListeners(final RegistryKey2<T> registryKey, final B builder) {
++        Preconditions.checkState(LaunchEntryPointHandler.INSTANCE.hasEntered(Entrypoint.BOOTSTRAPPER), registryKey + " tried to run modification listeners before bootstrappers have been called"); // verify that bootstrappers have been called
 +        if (this.modifications.containsKey(registryKey)) {
 +            this.modifications.get(registryKey).forEach(listener -> {
 +                // TODO exception catching
-+                ((RegistryListener.Modification<B>) listener.listener()).onRegister(builder);
++                ((RegistryListener.Modification<T, B>) listener.listener()).onRegister(builder);
 +            });
 +        }
 +        return builder;
 +    }
 +
-+    public <T extends Keyed, B extends RegistryBuilder> void runFreezeListeners(final RegistryKey2<T, B> registryKey) {
++    public <T extends Keyed, B extends RegistryBuilder<T>> void runFreezeListeners(final RegistryKey2<T> registryKey) {
 +        if (!this.freezes.containsKey(registryKey)) {
 +            return;
 +        }
@@ -179,23 +220,22 @@ index 0000000000000000000000000000000000000000..10daad06bc4563db4a7861be8f33f0eb
 +        }
 +
 +        @Override
-+        public <T extends Keyed, B extends RegistryBuilder> void registerListener(final RegistryKey2<T, B> registryKey, final RegistryListener<B> listener) {
-+            if (listener instanceof RegistryListener.Freeze<?, ?> freeze) {
-+                PaperRegistryListenerManager.this.freezes.computeIfAbsent(registryKey, ignored -> new ArrayList<>()).add(new RegisteredListener<>(this.pluginMeta, freeze));
-+            } else if (listener instanceof RegistryListener.Modification<?> modification) {
-+                PaperRegistryListenerManager.this.modifications.computeIfAbsent(registryKey, ignored -> new ArrayList<>()).add(new RegisteredListener<>(this.pluginMeta, modification));
-+            } else {
-+                throw new IllegalArgumentException(listener + " is not a valid listener");
-+            }
++        public <T extends Keyed, B extends RegistryBuilder<T>> void registerListener(RegistryKey2<T> registryKey, RegistryListener.Freeze<T, B> listener) {
++            PaperRegistryListenerManager.this.freezes.computeIfAbsent(registryKey, ignored -> new ArrayList<>()).add(new RegisteredListener<>(this.pluginMeta, listener));
++        }
++
++        @Override
++        public <T extends Keyed, B extends RegistryBuilder<T>> void registerListener(RegistryKey2<T> registryKey, RegistryListener.Modification<T, B> listener) {
++            PaperRegistryListenerManager.this.modifications.computeIfAbsent(registryKey, ignored -> new ArrayList<>()).add(new RegisteredListener<>(this.pluginMeta, listener));
 +        }
 +    }
 +}
 diff --git a/src/main/java/io/papermc/paper/registry/PaperWritableRegistry.java b/src/main/java/io/papermc/paper/registry/PaperWritableRegistry.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..d3c4f02a1fb53325a34ff1aea585a6f8d85ab1b1
+index 0000000000000000000000000000000000000000..c5da8b199bfd62e590ad18a99af09dadc2b50beb
 --- /dev/null
 +++ b/src/main/java/io/papermc/paper/registry/PaperWritableRegistry.java
-@@ -0,0 +1,42 @@
+@@ -0,0 +1,40 @@
 +package io.papermc.paper.registry;
 +
 +import com.mojang.serialization.Lifecycle;
@@ -210,25 +250,23 @@ index 0000000000000000000000000000000000000000..d3c4f02a1fb53325a34ff1aea585a6f8
 +import org.checkerframework.framework.qual.DefaultQualifier;
 +
 +@DefaultQualifier(NonNull.class)
-+public abstract class PaperWritableRegistry<M, T extends Keyed, B extends RegistryBuilder> extends CraftRegistry<T, M> implements WritableRegistry<T, B> {
++public abstract class PaperWritableRegistry<M, T extends Keyed, B extends RegistryBuilder<T>> extends CraftRegistry<T, M> implements WritableRegistry<T, B> {
 +
-+    private final RegistryKey2<T, B> registryKey;
++    private final RegistryKey2<T> registryKey;
 +    private final net.minecraft.core.WritableRegistry<M> registry;
 +
-+    public PaperWritableRegistry(RegistryKey2<T, B> registryKey, net.minecraft.core.WritableRegistry<M> registry) {
++    public PaperWritableRegistry(RegistryKey2<T> registryKey, net.minecraft.core.WritableRegistry<M> registry) {
 +        super(registry, null);
 +        this.registryKey = registryKey;
 +        this.registry = registry;
 +    }
 +
-+
 +    @Override
-+    public boolean add(NamespacedKey key, Consumer<? super B> value) {
++    public void register(NamespacedKey key, Consumer<? super B> value) {
 +        final B builder = this.newBuilder(key);
 +        value.accept(builder);
 +        PaperRegistryListenerManager.INSTANCE.runModificationListeners(this.registryKey, builder);
 +        this.registry.register(ResourceKey.create(this.registry.key(), CraftNamespacedKey.toMinecraft(key)), this.builderToMinecraft(builder), Lifecycle.experimental());
-+        return true;
 +    }
 +
 +    @Override
