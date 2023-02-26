@@ -1,5 +1,8 @@
 package io.papermc.testplugin;
 
+import io.papermc.paper.chat.ChatType;
+import io.papermc.paper.registry.RegistryAccess;
+import io.papermc.paper.registry.RegistryKey2;
 import org.bukkit.GameEvent;
 import org.bukkit.Registry;
 import org.bukkit.event.Listener;
@@ -17,6 +20,13 @@ public final class TestPlugin extends JavaPlugin implements Listener {
             throw new RuntimeException("could not find new event");
         } else {
             System.out.println("New event: " + newEvent.getKey());
+        }
+
+        ChatType newType = RegistryAccess.INSTANCE.getRegistry(RegistryKey2.CHAT_TYPE).get(TestPluginBootstrap.NEW_CHAT);
+        if (newType == null) {
+            throw new RuntimeException("could not find new chat type");
+        } else {
+            System.out.println("New chat type: " + newType.textTranslationKey());
         }
     }
 }
