@@ -5,6 +5,7 @@ Subject: [PATCH] Registry Modification API
 
 == AT ==
 public net.minecraft.server.RegistryLayer STATIC_ACCESS
+public net.minecraft.core.MappedRegistry validateWrite(Lnet/minecraft/resources/ResourceKey;)V
 
 diff --git a/src/main/java/io/papermc/paper/plugin/entrypoint/LaunchEntryPointHandler.java b/src/main/java/io/papermc/paper/plugin/entrypoint/LaunchEntryPointHandler.java
 index 6c0f2c315387734f8dd4a7eca633aa0a9856dd17..48bc745ca9632fc46b5f786ff570434702eb47f2 100644
@@ -356,13 +357,14 @@ index 0000000000000000000000000000000000000000..496c2c2a00e4ffa52a960149ba32c83c
 +}
 diff --git a/src/main/java/io/papermc/paper/registry/PaperWritableRegistry.java b/src/main/java/io/papermc/paper/registry/PaperWritableRegistry.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..e346346a6e15df59abc617920eab644c9f411e54
+index 0000000000000000000000000000000000000000..a8f4661f98da0df991bcde8206a6bc7252bcf3dd
 --- /dev/null
 +++ b/src/main/java/io/papermc/paper/registry/PaperWritableRegistry.java
-@@ -0,0 +1,41 @@
+@@ -0,0 +1,44 @@
 +package io.papermc.paper.registry;
 +
 +import com.mojang.serialization.Lifecycle;
++import net.minecraft.core.MappedRegistry;
 +import net.minecraft.resources.ResourceKey;
 +import org.bukkit.Keyed;
 +import org.bukkit.NamespacedKey;
@@ -374,9 +376,9 @@ index 0000000000000000000000000000000000000000..e346346a6e15df59abc617920eab644c
 +public abstract class PaperWritableRegistry<M, T extends Keyed, B extends PaperRegistryBuilder<M, T>> extends CraftRegistry<T, M> implements WritableRegistry<T, B> {
 +
 +    private final RegistryKey2<T> registryKey;
-+    private final net.minecraft.core.WritableRegistry<M> registry;
++    private final MappedRegistry<M> registry;
 +
-+    public PaperWritableRegistry(RegistryKey2<T> registryKey, net.minecraft.core.WritableRegistry<M> registry) {
++    public PaperWritableRegistry(RegistryKey2<T> registryKey, MappedRegistry<M> registry) {
 +        super(registry, null);
 +        this.registryKey = registryKey;
 +        this.registry = registry;
@@ -384,9 +386,11 @@ index 0000000000000000000000000000000000000000..e346346a6e15df59abc617920eab644c
 +
 +    @Override
 +    public void register(NamespacedKey key, Consumer<? super B> value) {
++        final ResourceKey<M> resourceKey = ResourceKey.create(this.registry.key(), CraftNamespacedKey.toMinecraft(key));
++        this.registry.validateWrite(resourceKey);
 +        final B builder = this.newBuilder(key);
 +        value.accept(builder);
-+        PaperRegistryListenerManager.INSTANCE.registerWithListeners(this.registry, this.registryKey, ResourceKey.create(this.registry.key(), CraftNamespacedKey.toMinecraft(key)), null, builder, Lifecycle.experimental());
++        PaperRegistryListenerManager.INSTANCE.registerWithListeners(this.registry, this.registryKey, resourceKey, null, builder, Lifecycle.experimental());
 +    }
 +
 +    @Override
@@ -744,7 +748,7 @@ index 0000000000000000000000000000000000000000..0b80179ff90e085568d7ceafd9b17511
 +import org.checkerframework.checker.nullness.qual.NonNull;
 +import org.checkerframework.framework.qual.DefaultQualifier;
 diff --git a/src/main/java/net/minecraft/core/MappedRegistry.java b/src/main/java/net/minecraft/core/MappedRegistry.java
-index 1e33434f9f361542e03da3e4812bc6d76768a202..98a9a8dd488736110f3918d93becfa3853417435 100644
+index 6e6d9573115eeedef4cb24beac43f1bc96eebb49..939544e463744d017b29be44b1b53fad755d2808 100644
 --- a/src/main/java/net/minecraft/core/MappedRegistry.java
 +++ b/src/main/java/net/minecraft/core/MappedRegistry.java
 @@ -461,4 +461,12 @@ public class MappedRegistry<T> implements WritableRegistry<T> {
