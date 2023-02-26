@@ -269,24 +269,6 @@ index ac9b690fcccb60b587e5345f12f1383afd0a73a1..b6de417e494ba0ec7928864a8083c2b3
      public static <T extends Keyed> Registry<T> getRegistry(@NotNull Class<T> tClass) {
          return server.getRegistry(tClass);
      }
-diff --git a/src/main/java/org/bukkit/NamespacedKey.java b/src/main/java/org/bukkit/NamespacedKey.java
-index 32479109d90571368fd66da7dcb45ddf54eb404e..984083dc9d1e2c9292e3225eedd7d6f94bbc27f5 100644
---- a/src/main/java/org/bukkit/NamespacedKey.java
-+++ b/src/main/java/org/bukkit/NamespacedKey.java
-@@ -144,11 +144,10 @@ public final class NamespacedKey implements net.kyori.adventure.key.Key, com.des
-         if (obj == null) {
-             return false;
-         }
--        if (getClass() != obj.getClass()) {
-+        if (!(obj instanceof net.kyori.adventure.key.Key key)) { // Paper
-             return false;
-         }
--        final NamespacedKey other = (NamespacedKey) obj;
--        return this.namespace.equals(other.namespace) && this.key.equals(other.key);
-+        return this.namespace.equals(key.namespace()) && this.key.equals(key.value()); // Paper
-     }
- 
-     @Override
 diff --git a/src/main/java/org/bukkit/Registry.java b/src/main/java/org/bukkit/Registry.java
 index 3dc747080b7bfea4b04b5a47cc7ae4698c758802..10b0655254af8e7e7d79ebce4a146fe6468d27be 100644
 --- a/src/main/java/org/bukkit/Registry.java
