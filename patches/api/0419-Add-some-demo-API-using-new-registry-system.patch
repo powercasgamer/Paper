@@ -32,7 +32,7 @@ index 0000000000000000000000000000000000000000..574dbfc883f503d76c2bdf61a8730483
 +
 +}
 diff --git a/src/main/java/io/papermc/paper/registry/RegistryKey2.java b/src/main/java/io/papermc/paper/registry/RegistryKey2.java
-index f2cff1da5e6fdb5bf53da4e6d1eecfa58273caf7..5b8c35150b3282ecabc802741c7afb4a62614277 100644
+index 8a0c0b27189436035004d8df2b24b6c5c747e20d..6835ec96666614583d88f813f2dc095d70935f05 100644
 --- a/src/main/java/io/papermc/paper/registry/RegistryKey2.java
 +++ b/src/main/java/io/papermc/paper/registry/RegistryKey2.java
 @@ -1,6 +1,7 @@
@@ -41,8 +41,8 @@ index f2cff1da5e6fdb5bf53da4e6d1eecfa58273caf7..5b8c35150b3282ecabc802741c7afb4a
  import com.google.common.collect.Sets;
 +import io.papermc.paper.chat.ChatType;
  import java.util.Set;
+ import net.kyori.adventure.key.Keyed;
  import org.bukkit.GameEvent;
- import org.bukkit.Keyed;
 @@ -18,11 +19,13 @@ public final class RegistryKey2<T extends Keyed> { // TODO rename once the serve
      /***********************
       * Built-in registries *
