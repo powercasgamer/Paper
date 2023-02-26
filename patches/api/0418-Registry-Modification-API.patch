@@ -95,10 +95,10 @@ index 0000000000000000000000000000000000000000..da2fe22060955ae0d147bbc942a60f40
 +}
 diff --git a/src/main/java/io/papermc/paper/registry/RegistryKey2.java b/src/main/java/io/papermc/paper/registry/RegistryKey2.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..f2cff1da5e6fdb5bf53da4e6d1eecfa58273caf7
+index 0000000000000000000000000000000000000000..4e6ce9fd24a2effc7608635f3de95c3181aeabc8
 --- /dev/null
 +++ b/src/main/java/io/papermc/paper/registry/RegistryKey2.java
-@@ -0,0 +1,57 @@
+@@ -0,0 +1,54 @@
 +package io.papermc.paper.registry;
 +
 +import com.google.common.collect.Sets;
@@ -144,10 +144,7 @@ index 0000000000000000000000000000000000000000..f2cff1da5e6fdb5bf53da4e6d1eecfa5
 +
 +    @Override
 +    public String toString() {
-+        return "RegistryKey2{" +
-+            "key=" + this.key +
-+            ", type=" + this.type +
-+            '}';
++        return "RegistryKey[" + this.key + " / " + this.type.getSimpleName() + "]";
 +    }
 +
 +    private static <T extends Keyed> RegistryKey2<T> create(final String key, final Class<T> type) {
@@ -204,7 +201,7 @@ index 0000000000000000000000000000000000000000..3f8f5d5287e5de10f560d715b3ac3a15
 +}
 diff --git a/src/main/java/io/papermc/paper/registry/RegistryListenerManager.java b/src/main/java/io/papermc/paper/registry/RegistryListenerManager.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..e39e2c95c7a1e2107f54b88142bd5ba14a77faf8
+index 0000000000000000000000000000000000000000..3a6002eb7dc22630fbebf6b768b49a810435f4f7
 --- /dev/null
 +++ b/src/main/java/io/papermc/paper/registry/RegistryListenerManager.java
 @@ -0,0 +1,17 @@
@@ -221,9 +218,9 @@ index 0000000000000000000000000000000000000000..e39e2c95c7a1e2107f54b88142bd5ba1
 +@ApiStatus.Experimental
 +public interface RegistryListenerManager {
 +
-+    <T extends Keyed, B extends RegistryBuilder<T>> void registerListener(@NotNull RegistryKey2<T> registryKey, @NotNull RegistryListener.Modification<T, B> listener);
++    <T extends Keyed, B extends RegistryBuilder<T>> void registerModificationListener(@NotNull RegistryKey2<T> registryKey, @NotNull RegistryListener.Modification<T, B> listener);
 +
-+    <T extends Keyed, B extends RegistryBuilder<T>> void registerListener(@NotNull RegistryKey2<T> registryKey, @NotNull RegistryListener.Freeze<T, B> listener);
++    <T extends Keyed, B extends RegistryBuilder<T>> void registerFreezeListener(@NotNull RegistryKey2<T> registryKey, @NotNull RegistryListener.Freeze<T, B> listener);
 +}
 diff --git a/src/main/java/io/papermc/paper/registry/WritableRegistry.java b/src/main/java/io/papermc/paper/registry/WritableRegistry.java
 new file mode 100644

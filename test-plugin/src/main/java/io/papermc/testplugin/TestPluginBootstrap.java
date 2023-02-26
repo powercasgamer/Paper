@@ -26,10 +26,10 @@ public class TestPluginBootstrap implements PluginBootstrap {
 
     @Override
     public void registryStuff(final RegistryListenerManager manager) {
-        manager.registerListener(RegistryKey2.GAME_EVENT, new Test());
-        manager.registerListener(RegistryKey2.GAME_EVENT, new Test2());
-        manager.registerListener(RegistryKey2.CHAT_TYPE, new AddChatType());
-        manager.registerListener(RegistryKey2.CHAT_TYPE, new ModifyChatType());
+        manager.registerFreezeListener(RegistryKey2.GAME_EVENT, new Test());
+        manager.registerModificationListener(RegistryKey2.GAME_EVENT, new Test2());
+        manager.registerFreezeListener(RegistryKey2.CHAT_TYPE, new AddChatType());
+        manager.registerModificationListener(RegistryKey2.CHAT_TYPE, new ModifyChatType());
     }
 
     private static final class Test implements RegistryListener.Freeze<GameEvent, GameEvent.Builder> {
