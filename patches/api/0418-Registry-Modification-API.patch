@@ -95,10 +95,10 @@ index 0000000000000000000000000000000000000000..da2fe22060955ae0d147bbc942a60f40
 +}
 diff --git a/src/main/java/io/papermc/paper/registry/RegistryKey2.java b/src/main/java/io/papermc/paper/registry/RegistryKey2.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..10d7c829148b19776dc19f4426a872212bffcce9
+index 0000000000000000000000000000000000000000..f2cff1da5e6fdb5bf53da4e6d1eecfa58273caf7
 --- /dev/null
 +++ b/src/main/java/io/papermc/paper/registry/RegistryKey2.java
-@@ -0,0 +1,58 @@
+@@ -0,0 +1,57 @@
 +package io.papermc.paper.registry;
 +
 +import com.google.common.collect.Sets;
@@ -119,7 +119,6 @@ index 0000000000000000000000000000000000000000..10d7c829148b19776dc19f4426a87221
 +    /***********************
 +     * Built-in registries *
 +     ***********************/
-+    public static final RegistryKey2<GameEvent> GAME_EVENT = create("game_event", GameEvent.class);
 +    public static final RegistryKey2<StructureType> STRUCTURE_TYPE = create("worldgen/structure_type", StructureType.class);
 +
 +    /**************************
