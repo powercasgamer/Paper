@@ -6,18 +6,17 @@ Subject: [PATCH] Add some demo API using new registry system
 
 diff --git a/src/main/java/io/papermc/paper/chat/PaperChatType.java b/src/main/java/io/papermc/paper/chat/PaperChatType.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..8b7f8e60d9970f08fca249aae8d16a85b7042081
+index 0000000000000000000000000000000000000000..289ce2b2b157abb84c87ff815f354b3a8878c686
 --- /dev/null
 +++ b/src/main/java/io/papermc/paper/chat/PaperChatType.java
-@@ -0,0 +1,71 @@
+@@ -0,0 +1,74 @@
 +package io.papermc.paper.chat;
 +
++import io.papermc.paper.registry.PaperRegistryBuilder;
 +import io.papermc.paper.registry.RegistryKey2;
 +import io.papermc.paper.registry.entry.RegistryEntry;
-+import java.util.List;
 +import net.minecraft.core.registries.Registries;
 +import net.minecraft.network.chat.ChatTypeDecoration;
-+import net.minecraft.network.chat.Style;
 +import org.bukkit.NamespacedKey;
 +import org.checkerframework.checker.nullness.qual.NonNull;
 +import org.checkerframework.checker.nullness.qual.Nullable;
@@ -30,7 +29,6 @@ index 0000000000000000000000000000000000000000..8b7f8e60d9970f08fca249aae8d16a85
 +        RegistryKey2.CHAT_TYPE,
 +        Registries.CHAT_TYPE,
 +        PaperChatType::new,
-+        builder -> new net.minecraft.network.chat.ChatType(ChatTypeDecoration.withSender(builder.textTranslationKey()), ChatTypeDecoration.withSender("chat.type.text.narrate")),
 +        Builder::new
 +    );
 +
@@ -52,7 +50,7 @@ index 0000000000000000000000000000000000000000..8b7f8e60d9970f08fca249aae8d16a85
 +        return this.key;
 +    }
 +    
-+    public static final class Builder implements ChatType.Builder {
++    public static final class Builder implements ChatType.Builder, PaperRegistryBuilder<net.minecraft.network.chat.ChatType, ChatType> {
 +        
 +        private final NamespacedKey key;
 +        private String textTranslationKey = "";
@@ -79,43 +77,48 @@ index 0000000000000000000000000000000000000000..8b7f8e60d9970f08fca249aae8d16a85
 +        public NamespacedKey getKey() {
 +            return this.key;
 +        }
++
++        @Override
++        public net.minecraft.network.chat.ChatType build() {
++            return new net.minecraft.network.chat.ChatType(ChatTypeDecoration.withSender(this.textTranslationKey()), ChatTypeDecoration.withSender("chat.type.text.narrate"));
++        }
 +    }
 +}
-diff --git a/src/main/java/io/papermc/paper/registry/PaperRegistryAccess.java b/src/main/java/io/papermc/paper/registry/PaperRegistryAccess.java
-index ce195784736a535ee6b498e7bf376d7b2354f725..aea8566090775ad29a4d5c94184df27875a7f4b7 100644
---- a/src/main/java/io/papermc/paper/registry/PaperRegistryAccess.java
-+++ b/src/main/java/io/papermc/paper/registry/PaperRegistryAccess.java
-@@ -1,8 +1,10 @@
+diff --git a/src/main/java/io/papermc/paper/registry/PaperRegistries.java b/src/main/java/io/papermc/paper/registry/PaperRegistries.java
+index b3d8d1cd6e261b6731851d85d841e3a0f3458bdf..27f8521a7ebcf7672d94be318de59ce34caca360 100644
+--- a/src/main/java/io/papermc/paper/registry/PaperRegistries.java
++++ b/src/main/java/io/papermc/paper/registry/PaperRegistries.java
+@@ -1,7 +1,9 @@
  package io.papermc.paper.registry;
  
- import com.google.common.collect.ImmutableMap;
+ import com.google.common.collect.ImmutableList;
 +import io.papermc.paper.chat.PaperChatType;
  import io.papermc.paper.registry.entry.RegistryEntry;
- import io.papermc.paper.registry.legacy.DelayedRegistry;
 +import io.papermc.paper.world.PaperGameEvent;
- import java.util.IdentityHashMap;
+ import java.util.List;
  import java.util.Map;
- import java.util.Objects;
-@@ -27,9 +29,11 @@ public class PaperRegistryAccess implements RegistryAccess {
+ import java.util.function.Function;
+@@ -19,9 +21,11 @@ public final class PaperRegistries {
      static {
-         BY_REGISTRY_KEY = ImmutableMap.<RegistryKey2<?>, RegistryEntry<?, ?>>builder()
+         REGISTRY_ENTRIES = ImmutableList.<RegistryEntry<?, ?>>builder()
              // built-ins
-+            .put(PaperGameEvent.ENTRY.mapEntry())
-             .put(RegistryEntry.nonWritable(RegistryKey2.STRUCTURE_TYPE, Registries.STRUCTURE_TYPE,CraftStructureType::new).mapEntry())
++            .add(PaperGameEvent.ENTRY)
+             .add(nonWritable(RegistryKey2.STRUCTURE_TYPE, Registries.STRUCTURE_TYPE, CraftStructureType::new))
  
              // data-drivens
-+            .put(PaperChatType.ENTRY.mapEntry())
-             .put(RegistryEntry.nonWritable(RegistryKey2.STRUCTURE, Registries.STRUCTURE, CraftStructure::new).delay().mapEntry())
++            .add(PaperChatType.ENTRY)
+             .add(nonWritable(RegistryKey2.STRUCTURE, Registries.STRUCTURE, CraftStructure::new).delay())
              .build();
      }
 diff --git a/src/main/java/io/papermc/paper/world/PaperGameEvent.java b/src/main/java/io/papermc/paper/world/PaperGameEvent.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..fe0d2dbc09845ad60c361fc9520b8c784a2daef1
+index 0000000000000000000000000000000000000000..e54992728af9ad72f5faa1c0897f58cfe012ce01
 --- /dev/null
 +++ b/src/main/java/io/papermc/paper/world/PaperGameEvent.java
 @@ -0,0 +1,69 @@
 +package io.papermc.paper.world;
 +
++import io.papermc.paper.registry.PaperRegistryBuilder;
 +import io.papermc.paper.registry.RegistryKey2;
 +import io.papermc.paper.registry.entry.RegistryEntry;
 +import net.minecraft.core.registries.Registries;
@@ -124,7 +127,6 @@ index 0000000000000000000000000000000000000000..fe0d2dbc09845ad60c361fc9520b8c78
 +import org.checkerframework.checker.nullness.qual.NonNull;
 +import org.checkerframework.checker.nullness.qual.Nullable;
 +import org.checkerframework.framework.qual.DefaultQualifier;
-+import org.jetbrains.annotations.NotNull;
 +
 +@DefaultQualifier(NonNull.class)
 +public final class PaperGameEvent extends GameEvent {
@@ -133,7 +135,6 @@ index 0000000000000000000000000000000000000000..fe0d2dbc09845ad60c361fc9520b8c78
 +        RegistryKey2.GAME_EVENT,
 +        Registries.GAME_EVENT,
 +        PaperGameEvent::minecraftToBukkit,
-+        PaperGameEvent::builderToNms,
 +        Builder::new
 +    );
 +
@@ -141,7 +142,7 @@ index 0000000000000000000000000000000000000000..fe0d2dbc09845ad60c361fc9520b8c78
 +        super(key);
 +    }
 +
-+    public static final class Builder implements GameEvent.Builder {
++    public static final class Builder implements GameEvent.Builder, PaperRegistryBuilder<net.minecraft.world.level.gameevent.GameEvent, GameEvent> {
 +
 +        private final NamespacedKey key;
 +        private int range = 16;
@@ -154,7 +155,7 @@ index 0000000000000000000000000000000000000000..fe0d2dbc09845ad60c361fc9520b8c78
 +        }
 +
 +        @Override
-+        public @NotNull NamespacedKey getKey() {
++        public NamespacedKey getKey() {
 +            return this.key;
 +        }
 +
@@ -168,6 +169,11 @@ index 0000000000000000000000000000000000000000..fe0d2dbc09845ad60c361fc9520b8c78
 +            this.range = range;
 +            return this;
 +        }
++
++        @Override
++        public net.minecraft.world.level.gameevent.GameEvent build() {
++            return new net.minecraft.world.level.gameevent.GameEvent(this.key.value(), this.range);
++        }
 +    }
 +
 +    private static GameEvent minecraftToBukkit(NamespacedKey key, net.minecraft.world.level.gameevent.GameEvent nms) {
@@ -176,10 +182,6 @@ index 0000000000000000000000000000000000000000..fe0d2dbc09845ad60c361fc9520b8c78
 +            return bukkit;
 +        }
 +        return new PaperGameEvent(key);
-+    }
-+
-+    private static net.minecraft.world.level.gameevent.GameEvent builderToNms(GameEvent.Builder builder) {
-+        return new net.minecraft.world.level.gameevent.GameEvent(builder.key().value(), builder.range());
 +    }
 +
 +}

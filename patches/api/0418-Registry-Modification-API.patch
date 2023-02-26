@@ -253,6 +253,22 @@ index 0000000000000000000000000000000000000000..3693d69950f40a678e091971d5bd37e2
 +    void register(@NotNull NamespacedKey key, @NotNull Consumer<? super B> value);
 +
 +}
+diff --git a/src/main/java/org/bukkit/Bukkit.java b/src/main/java/org/bukkit/Bukkit.java
+index ac9b690fcccb60b587e5345f12f1383afd0a73a1..b6de417e494ba0ec7928864a8083c2b365633cab 100644
+--- a/src/main/java/org/bukkit/Bukkit.java
++++ b/src/main/java/org/bukkit/Bukkit.java
+@@ -2266,8 +2266,11 @@ public final class Bukkit {
+      * @param tClass of the registry to get
+      * @param <T> type of the registry
+      * @return the corresponding registry or null if not present
++     * @deprecated use {@link io.papermc.paper.registry.RegistryAccess#getRegistry(io.papermc.paper.registry.RegistryKey2)} with
++     * keys from {@link io.papermc.paper.registry.RegistryKey2}.
+      */
+     @Nullable
++    @Deprecated // Paper
+     public static <T extends Keyed> Registry<T> getRegistry(@NotNull Class<T> tClass) {
+         return server.getRegistry(tClass);
+     }
 diff --git a/src/main/java/org/bukkit/NamespacedKey.java b/src/main/java/org/bukkit/NamespacedKey.java
 index 32479109d90571368fd66da7dcb45ddf54eb404e..984083dc9d1e2c9292e3225eedd7d6f94bbc27f5 100644
 --- a/src/main/java/org/bukkit/NamespacedKey.java
@@ -303,6 +319,22 @@ index 3dc747080b7bfea4b04b5a47cc7ae4698c758802..10b0655254af8e7e7d79ebce4a146fe6
      /**
       * Potion effect types.
       *
+diff --git a/src/main/java/org/bukkit/Server.java b/src/main/java/org/bukkit/Server.java
+index 2204336d8800311b65e894739ab1b27273e7c6f2..f688305748c7dbb810ad41e5e93a4a421b411beb 100644
+--- a/src/main/java/org/bukkit/Server.java
++++ b/src/main/java/org/bukkit/Server.java
+@@ -1931,8 +1931,11 @@ public interface Server extends PluginMessageRecipient, net.kyori.adventure.audi
+      * @param tClass of the registry to get
+      * @param <T> type of the registry
+      * @return the corresponding registry or null if not present
++     * @deprecated use {@link io.papermc.paper.registry.RegistryAccess#getRegistry(io.papermc.paper.registry.RegistryKey2)} with
++     * keys from {@link io.papermc.paper.registry.RegistryKey2}.
+      */
+     @Nullable
++    @Deprecated // Paper
+     <T extends Keyed> Registry<T> getRegistry(@NotNull Class<T> tClass);
+ 
+     /**
 diff --git a/src/test/java/io/papermc/paper/registry/TestRegistryAccess.java b/src/test/java/io/papermc/paper/registry/TestRegistryAccess.java
 new file mode 100644
 index 0000000000000000000000000000000000000000..7d39e1974bf3df903d3224f639658863eaa9310e
