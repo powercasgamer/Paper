@@ -4,33 +4,6 @@ Date: Sat, 25 Feb 2023 13:45:44 -0800
 Subject: [PATCH] Registry Modification API
 
 
-diff --git a/src/main/java/io/papermc/paper/chat/ChatType.java b/src/main/java/io/papermc/paper/chat/ChatType.java
-new file mode 100644
-index 0000000000000000000000000000000000000000..23c333fead562d778f578c3ef6d9dcf3fd113277
---- /dev/null
-+++ b/src/main/java/io/papermc/paper/chat/ChatType.java
-@@ -0,0 +1,21 @@
-+package io.papermc.paper.chat;
-+
-+import io.papermc.paper.registry.RegistryBuilder;
-+import org.bukkit.Keyed;
-+import org.jetbrains.annotations.ApiStatus;
-+import org.jetbrains.annotations.NotNull;
-+
-+@ApiStatus.NonExtendable
-+@ApiStatus.Experimental
-+public interface ChatType extends net.kyori.adventure.chat.ChatType, Keyed {
-+
-+    String textTranslationKey();
-+
-+    @ApiStatus.NonExtendable
-+    @ApiStatus.Experimental
-+    interface Builder extends RegistryBuilder<ChatType>, ChatType {
-+
-+        @NotNull Builder textTranslationKey(@NotNull String key);
-+    }
-+
-+}
 diff --git a/src/main/java/io/papermc/paper/plugin/bootstrap/PluginBootstrap.java b/src/main/java/io/papermc/paper/plugin/bootstrap/PluginBootstrap.java
 index ea84b11e8682e73fcd563fec65e76b707546a99e..07c37862321d198696833eb2085f434b8b43c8cd 100644
 --- a/src/main/java/io/papermc/paper/plugin/bootstrap/PluginBootstrap.java
@@ -122,14 +95,13 @@ index 0000000000000000000000000000000000000000..da2fe22060955ae0d147bbc942a60f40
 +}
 diff --git a/src/main/java/io/papermc/paper/registry/RegistryKey2.java b/src/main/java/io/papermc/paper/registry/RegistryKey2.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..5b8c35150b3282ecabc802741c7afb4a62614277
+index 0000000000000000000000000000000000000000..10d7c829148b19776dc19f4426a872212bffcce9
 --- /dev/null
 +++ b/src/main/java/io/papermc/paper/registry/RegistryKey2.java
-@@ -0,0 +1,60 @@
+@@ -0,0 +1,58 @@
 +package io.papermc.paper.registry;
 +
 +import com.google.common.collect.Sets;
-+import io.papermc.paper.chat.ChatType;
 +import java.util.Set;
 +import org.bukkit.GameEvent;
 +import org.bukkit.Keyed;
@@ -153,7 +125,6 @@ index 0000000000000000000000000000000000000000..5b8c35150b3282ecabc802741c7afb4a
 +    /**************************
 +     * Data-driven registries *
 +     **************************/
-+    public static final RegistryKey2<ChatType> CHAT_TYPE = create("chat_type", ChatType.class);
 +    public static final RegistryKey2<Structure> STRUCTURE = create("worldgen/structure", Structure.class);
 +
 +    private final NamespacedKey key;
@@ -283,61 +254,33 @@ index 0000000000000000000000000000000000000000..3693d69950f40a678e091971d5bd37e2
 +    void register(@NotNull NamespacedKey key, @NotNull Consumer<? super B> value);
 +
 +}
-diff --git a/src/main/java/org/bukkit/GameEvent.java b/src/main/java/org/bukkit/GameEvent.java
-index 4808824a55628d1e2344981d40d3665d572117e0..6ecd162c6f797be124ff1ce5af16d9903283facb 100644
---- a/src/main/java/org/bukkit/GameEvent.java
-+++ b/src/main/java/org/bukkit/GameEvent.java
-@@ -10,7 +10,8 @@ import org.jetbrains.annotations.Nullable;
- /**
-  * Represents a generic Mojang game event.
-  */
--public final class GameEvent implements Keyed {
-+@org.jetbrains.annotations.ApiStatus.NonExtendable // Paper
-+public class GameEvent implements Keyed { // Paper
- 
-     private static final Map<NamespacedKey, GameEvent> GAME_EVENTS = new HashMap<>();
-     //
-@@ -93,7 +94,8 @@ public final class GameEvent implements Keyed {
-     //
-     private final NamespacedKey key;
- 
--    private GameEvent(NamespacedKey key) {
-+    @org.jetbrains.annotations.ApiStatus.Internal // Paper
-+    protected GameEvent(NamespacedKey key) { // Paper
-         this.key = key;
- 
-         GAME_EVENTS.put(key, this);
-@@ -129,4 +131,13 @@ public final class GameEvent implements Keyed {
-     private static GameEvent getEvent(String vanilla) {
-         return new GameEvent(NamespacedKey.minecraft(vanilla));
+diff --git a/src/main/java/org/bukkit/NamespacedKey.java b/src/main/java/org/bukkit/NamespacedKey.java
+index 32479109d90571368fd66da7dcb45ddf54eb404e..984083dc9d1e2c9292e3225eedd7d6f94bbc27f5 100644
+--- a/src/main/java/org/bukkit/NamespacedKey.java
++++ b/src/main/java/org/bukkit/NamespacedKey.java
+@@ -144,11 +144,10 @@ public final class NamespacedKey implements net.kyori.adventure.key.Key, com.des
+         if (obj == null) {
+             return false;
+         }
+-        if (getClass() != obj.getClass()) {
++        if (!(obj instanceof net.kyori.adventure.key.Key key)) { // Paper
+             return false;
+         }
+-        final NamespacedKey other = (NamespacedKey) obj;
+-        return this.namespace.equals(other.namespace) && this.key.equals(other.key);
++        return this.namespace.equals(key.namespace()) && this.key.equals(key.value()); // Paper
      }
-+    // Paper start
-+    @org.jetbrains.annotations.ApiStatus.Experimental
-+    @org.jetbrains.annotations.ApiStatus.NonExtendable
-+    public interface Builder extends io.papermc.paper.registry.RegistryBuilder<GameEvent> {
-+        int range();
-+
-+        @NotNull Builder range(int range);
-+    }
-+    // Paper end
- }
+ 
+     @Override
 diff --git a/src/main/java/org/bukkit/Registry.java b/src/main/java/org/bukkit/Registry.java
-index 3dc747080b7bfea4b04b5a47cc7ae4698c758802..193b220d07767423a04949b81fc31d4d63f189e9 100644
+index 3dc747080b7bfea4b04b5a47cc7ae4698c758802..10b0655254af8e7e7d79ebce4a146fe6468d27be 100644
 --- a/src/main/java/org/bukkit/Registry.java
 +++ b/src/main/java/org/bukkit/Registry.java
-@@ -3,6 +3,7 @@ package org.bukkit;
- import com.google.common.base.Preconditions;
- import com.google.common.base.Predicates;
- import com.google.common.collect.ImmutableMap;
-+import io.papermc.paper.registry.RegistryKey2;
- import java.util.Arrays;
- import java.util.Iterator;
- import java.util.Map;
-@@ -135,14 +136,16 @@ public interface Registry<T extends Keyed> extends Iterable<T> {
+@@ -135,14 +135,16 @@ public interface Registry<T extends Keyed> extends Iterable<T> {
       * Server structures.
       *
       * @see Structure
-+     * @deprecated use {@link io.papermc.paper.registry.RegistryAccess#getRegistry(RegistryKey2)} with {@link RegistryKey2#STRUCTURE}.
++     * @deprecated use {@link io.papermc.paper.registry.RegistryAccess#getRegistry(io.papermc.paper.registry.RegistryKey2)} with {@link io.papermc.paper.registry.RegistryKey2#STRUCTURE}.
       */
 -    Registry<Structure> STRUCTURE = Bukkit.getRegistry(Structure.class);
 +    @Deprecated // Paper
@@ -348,31 +291,11 @@ index 3dc747080b7bfea4b04b5a47cc7ae4698c758802..193b220d07767423a04949b81fc31d4d
       * @see StructureType
       */
 -    Registry<StructureType> STRUCTURE_TYPE = Bukkit.getRegistry(StructureType.class);
-+    Registry<StructureType> STRUCTURE_TYPE = io.papermc.paper.registry.RegistryAccess.INSTANCE.getRegistry(RegistryKey2.STRUCTURE_TYPE); // Paper
++    Registry<StructureType> STRUCTURE_TYPE = io.papermc.paper.registry.RegistryAccess.INSTANCE.getRegistry(io.papermc.paper.registry.RegistryKey2.STRUCTURE_TYPE); // Paper
      /**
       * Sound keys.
       *
-@@ -197,26 +200,13 @@ public interface Registry<T extends Keyed> extends Iterable<T> {
-      *
-      * @see GameEvent
-      */
--    Registry<GameEvent> GAME_EVENT = new Registry<GameEvent>() {
--
--        @NotNull
--        @Override
--        public Iterator iterator() {
--            return GameEvent.values().iterator();
--        }
--
--        @Nullable
--        @Override
--        public GameEvent get(@NotNull NamespacedKey key) {
--            return GameEvent.getByKey(key);
--        }
--    };
-+    Registry<GameEvent> GAME_EVENT = io.papermc.paper.registry.RegistryAccess.INSTANCE.getRegistry(RegistryKey2.GAME_EVENT); // Paper
-     // Paper start
-     /**
+@@ -216,7 +218,7 @@ public interface Registry<T extends Keyed> extends Iterable<T> {
       * Configured structures.
       * @see io.papermc.paper.world.structure.ConfiguredStructure
       */

@@ -11,6 +11,7 @@ import org.bukkit.GameEvent;
 import org.bukkit.NamespacedKey;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.framework.qual.DefaultQualifier;
+import org.jetbrains.annotations.NotNull;
 
 @DefaultQualifier(NonNull.class)
 public class TestPluginBootstrap implements PluginBootstrap {
@@ -28,6 +29,7 @@ public class TestPluginBootstrap implements PluginBootstrap {
         manager.registerListener(RegistryKey2.GAME_EVENT, new Test());
         manager.registerListener(RegistryKey2.GAME_EVENT, new Test2());
         manager.registerListener(RegistryKey2.CHAT_TYPE, new AddChatType());
+        manager.registerListener(RegistryKey2.CHAT_TYPE, new ModifyChatType());
     }
 
     private static final class Test implements RegistryListener.Freeze<GameEvent, GameEvent.Builder> {
@@ -57,6 +59,16 @@ public class TestPluginBootstrap implements PluginBootstrap {
             registry.register(NEW_CHAT, builder -> {
                 builder.textTranslationKey("epic chat from %s: %s");
             });
+        }
+    }
+
+    private static final class ModifyChatType implements RegistryListener.Modification<ChatType, ChatType.Builder> {
+
+        @Override
+        public void onRegister(final ChatType.@NotNull Builder builder) {
+            if (builder.key().equals(net.kyori.adventure.chat.ChatType.CHAT.key())) {
+                builder.textTranslationKey("<<%s>> %s");
+            }
         }
     }
 }
