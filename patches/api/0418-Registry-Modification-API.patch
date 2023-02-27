@@ -152,62 +152,16 @@ index 0000000000000000000000000000000000000000..8a0c0b27189436035004d8df2b24b6c5
 +        return registryKey;
 +    }
 +}
-diff --git a/src/main/java/io/papermc/paper/registry/RegistryListener.java b/src/main/java/io/papermc/paper/registry/RegistryListener.java
-new file mode 100644
-index 0000000000000000000000000000000000000000..cb4215611907fd4cbb2bb242a34436fc06678e72
---- /dev/null
-+++ b/src/main/java/io/papermc/paper/registry/RegistryListener.java
-@@ -0,0 +1,42 @@
-+package io.papermc.paper.registry;
-+
-+import io.papermc.paper.registry.event.FreezeRegistryEvent;
-+import io.papermc.paper.registry.event.ModifyRegistryEvent;
-+import org.bukkit.Keyed;
-+import org.jetbrains.annotations.ApiStatus;
-+import org.jetbrains.annotations.NotNull;
-+
-+public final class RegistryListener {
-+
-+    private RegistryListener() {
-+    }
-+
-+    /**
-+     * Called before any object is added to the registry (including ones
-+     * from any {@link Freeze} listeners).
-+     *
-+     * @param <B> builder type
-+     */
-+    @ApiStatus.OverrideOnly
-+    @ApiStatus.Experimental
-+    @FunctionalInterface
-+    public interface Modification<T extends Keyed, B extends RegistryBuilder<T>> {
-+
-+        void beforeRegister(@NotNull ModifyRegistryEvent<T, B> event);
-+    }
-+
-+    /**
-+     * Called after all other objects have been added to a registry (from
-+     * built-in sources or datapacks depending on the registry type).
-+     *
-+     * @param <T> object type
-+     * @param <B> builder type
-+     */
-+    @ApiStatus.OverrideOnly
-+    @ApiStatus.Experimental
-+    @FunctionalInterface
-+    public interface Freeze<T extends Keyed, B extends RegistryBuilder<T>> {
-+
-+        void beforeFreeze(@NotNull FreezeRegistryEvent<T, B> event);
-+    }
-+}
 diff --git a/src/main/java/io/papermc/paper/registry/RegistryManager.java b/src/main/java/io/papermc/paper/registry/RegistryManager.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..5788dc7abe8bb13f294dd0bf6f64acf666cdd652
+index 0000000000000000000000000000000000000000..3fb68a42ffc8cb2ddbacb73298d0270ee49b8153
 --- /dev/null
 +++ b/src/main/java/io/papermc/paper/registry/RegistryManager.java
-@@ -0,0 +1,17 @@
+@@ -0,0 +1,19 @@
 +package io.papermc.paper.registry;
 +
++import io.papermc.paper.registry.event.listener.RegistryAdditionListener;
++import io.papermc.paper.registry.event.listener.RegistryPreFreezeListener;
 +import org.bukkit.Keyed;
 +import org.jetbrains.annotations.ApiStatus;
 +import org.jetbrains.annotations.NotNull;
@@ -219,9 +173,9 @@ index 0000000000000000000000000000000000000000..5788dc7abe8bb13f294dd0bf6f64acf6
 +@ApiStatus.Experimental
 +public interface RegistryManager {
 +
-+    <T extends Keyed, B extends RegistryBuilder<T>> void registerModificationListener(@NotNull RegistryKey2<T> registryKey, @NotNull RegistryListener.Modification<T, B> listener);
++    <T extends Keyed, B extends RegistryBuilder<T>> void registerAdditionListener(@NotNull RegistryKey2<T> registryKey, @NotNull RegistryAdditionListener<T, B> listener);
 +
-+    <T extends Keyed, B extends RegistryBuilder<T>> void registerFreezeListener(@NotNull RegistryKey2<T> registryKey, @NotNull RegistryListener.Freeze<T, B> listener);
++    <T extends Keyed, B extends RegistryBuilder<T>> void registerPreFreezeListener(@NotNull RegistryKey2<T> registryKey, @NotNull RegistryPreFreezeListener<T, B> listener);
 +}
 diff --git a/src/main/java/io/papermc/paper/registry/RegistryView.java b/src/main/java/io/papermc/paper/registry/RegistryView.java
 new file mode 100644
@@ -249,31 +203,11 @@ index 0000000000000000000000000000000000000000..33939811b0773d8aa85db72ab0999005
 +    @Contract("_, !null -> !null")
 +    @Nullable T getOrDefault(final @NotNull Key key, @Nullable T def);
 +}
-diff --git a/src/main/java/io/papermc/paper/registry/event/FreezeRegistryEvent.java b/src/main/java/io/papermc/paper/registry/event/FreezeRegistryEvent.java
+diff --git a/src/main/java/io/papermc/paper/registry/event/MutableRegistryView.java b/src/main/java/io/papermc/paper/registry/event/MutableRegistryView.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..91a0dc270af66e71f7600b03e7b1fca7ecd0c648
+index 0000000000000000000000000000000000000000..04438900562f38c022c664ecd4245c18437d6a67
 --- /dev/null
-+++ b/src/main/java/io/papermc/paper/registry/event/FreezeRegistryEvent.java
-@@ -0,0 +1,14 @@
-+package io.papermc.paper.registry.event;
-+
-+import io.papermc.paper.registry.RegistryBuilder;
-+import net.kyori.adventure.key.Keyed;
-+import org.jetbrains.annotations.ApiStatus;
-+import org.jetbrains.annotations.NotNull;
-+
-+@ApiStatus.Experimental
-+@ApiStatus.NonExtendable
-+public interface FreezeRegistryEvent<T extends Keyed, B extends RegistryBuilder<T>> extends RegistryEvent<T, B> {
-+
-+    @Override
-+    @NotNull ModifiableRegistryView<T, B> registryView();
-+}
-diff --git a/src/main/java/io/papermc/paper/registry/event/ModifiableRegistryView.java b/src/main/java/io/papermc/paper/registry/event/ModifiableRegistryView.java
-new file mode 100644
-index 0000000000000000000000000000000000000000..9a88fad6dda0fd4b579e9dad608cc7c3236fc631
---- /dev/null
-+++ b/src/main/java/io/papermc/paper/registry/event/ModifiableRegistryView.java
++++ b/src/main/java/io/papermc/paper/registry/event/MutableRegistryView.java
 @@ -0,0 +1,16 @@
 +package io.papermc.paper.registry.event;
 +
@@ -287,15 +221,15 @@ index 0000000000000000000000000000000000000000..9a88fad6dda0fd4b579e9dad608cc7c3
 +
 +@ApiStatus.NonExtendable
 +@ApiStatus.Experimental
-+public interface ModifiableRegistryView<T extends Keyed, B extends RegistryBuilder<T>> extends RegistryView<T> {
++public interface MutableRegistryView<T extends Keyed, B extends RegistryBuilder<T>> extends RegistryView<T> {
 +
 +    void register(@NotNull Key key, @NotNull Consumer<? super B> value);
 +}
-diff --git a/src/main/java/io/papermc/paper/registry/event/ModifyRegistryEvent.java b/src/main/java/io/papermc/paper/registry/event/ModifyRegistryEvent.java
+diff --git a/src/main/java/io/papermc/paper/registry/event/RegistryAdditionEvent.java b/src/main/java/io/papermc/paper/registry/event/RegistryAdditionEvent.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..a894e4d9c61e7a53033e00e5d8cadcd50d77e6e8
+index 0000000000000000000000000000000000000000..e60dc63e3dd1aaa9a37def0d80f48ce934ec8ba7
 --- /dev/null
-+++ b/src/main/java/io/papermc/paper/registry/event/ModifyRegistryEvent.java
++++ b/src/main/java/io/papermc/paper/registry/event/RegistryAdditionEvent.java
 @@ -0,0 +1,13 @@
 +package io.papermc.paper.registry.event;
 +
@@ -306,9 +240,9 @@ index 0000000000000000000000000000000000000000..a894e4d9c61e7a53033e00e5d8cadcd5
 +
 +@ApiStatus.Experimental
 +@ApiStatus.NonExtendable
-+public interface ModifyRegistryEvent<T extends Keyed, B extends RegistryBuilder<T>> extends RegistryEvent<T, B> {
++public interface RegistryAdditionEvent<T extends Keyed, B extends RegistryBuilder<T>> extends RegistryEvent<T, B> {
 +
-+    @NotNull B currentBuilder();
++    @NotNull B builder();
 +}
 diff --git a/src/main/java/io/papermc/paper/registry/event/RegistryEvent.java b/src/main/java/io/papermc/paper/registry/event/RegistryEvent.java
 new file mode 100644
@@ -336,6 +270,81 @@ index 0000000000000000000000000000000000000000..cf7accaa9091babc0eeb583becf3c05b
 +    default @NotNull String eventName() {
 +        return this.getClass().getSimpleName();
 +    }
++}
+diff --git a/src/main/java/io/papermc/paper/registry/event/RegistryPreFreezeEvent.java b/src/main/java/io/papermc/paper/registry/event/RegistryPreFreezeEvent.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..4dc92f57d7b5438fc9e4a0767a2d734418bb1ba5
+--- /dev/null
++++ b/src/main/java/io/papermc/paper/registry/event/RegistryPreFreezeEvent.java
+@@ -0,0 +1,14 @@
++package io.papermc.paper.registry.event;
++
++import io.papermc.paper.registry.RegistryBuilder;
++import net.kyori.adventure.key.Keyed;
++import org.jetbrains.annotations.ApiStatus;
++import org.jetbrains.annotations.NotNull;
++
++@ApiStatus.Experimental
++@ApiStatus.NonExtendable
++public interface RegistryPreFreezeEvent<T extends Keyed, B extends RegistryBuilder<T>> extends RegistryEvent<T, B> {
++
++    @Override
++    @NotNull MutableRegistryView<T, B> registryView();
++}
+diff --git a/src/main/java/io/papermc/paper/registry/event/listener/RegistryAdditionListener.java b/src/main/java/io/papermc/paper/registry/event/listener/RegistryAdditionListener.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..d309df3c27724d3c25094d043d77a61057ab48be
+--- /dev/null
++++ b/src/main/java/io/papermc/paper/registry/event/listener/RegistryAdditionListener.java
+@@ -0,0 +1,21 @@
++package io.papermc.paper.registry.event.listener;
++
++import io.papermc.paper.registry.RegistryBuilder;
++import io.papermc.paper.registry.event.RegistryAdditionEvent;
++import org.bukkit.Keyed;
++import org.jetbrains.annotations.ApiStatus;
++import org.jetbrains.annotations.NotNull;
++
++/**
++ * Called before any object is added to the registry (including ones
++ * from any {@link RegistryPreFreezeListener} listeners).
++ *
++ * @param <B> builder type
++ */
++@ApiStatus.OverrideOnly
++@ApiStatus.Experimental
++@FunctionalInterface
++public interface RegistryAdditionListener<T extends Keyed, B extends RegistryBuilder<T>> {
++
++    void beforeRegister(@NotNull RegistryAdditionEvent<T, B> event);
++}
+diff --git a/src/main/java/io/papermc/paper/registry/event/listener/RegistryPreFreezeListener.java b/src/main/java/io/papermc/paper/registry/event/listener/RegistryPreFreezeListener.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..cbefe6d5eb18e9f554c85160b234a9890f836351
+--- /dev/null
++++ b/src/main/java/io/papermc/paper/registry/event/listener/RegistryPreFreezeListener.java
+@@ -0,0 +1,22 @@
++package io.papermc.paper.registry.event.listener;
++
++import io.papermc.paper.registry.RegistryBuilder;
++import io.papermc.paper.registry.event.RegistryPreFreezeEvent;
++import org.bukkit.Keyed;
++import org.jetbrains.annotations.ApiStatus;
++import org.jetbrains.annotations.NotNull;
++
++/**
++ * Called after all other objects have been added to a registry (from
++ * built-in sources or datapacks depending on the registry type).
++ *
++ * @param <T> object type
++ * @param <B> builder type
++ */
++@ApiStatus.OverrideOnly
++@ApiStatus.Experimental
++@FunctionalInterface
++public interface RegistryPreFreezeListener<T extends Keyed, B extends RegistryBuilder<T>> {
++
++    void beforeFreeze(@NotNull RegistryPreFreezeEvent<T, B> event);
 +}
 diff --git a/src/main/java/org/bukkit/Bukkit.java b/src/main/java/org/bukkit/Bukkit.java
 index ac9b690fcccb60b587e5345f12f1383afd0a73a1..b6de417e494ba0ec7928864a8083c2b365633cab 100644

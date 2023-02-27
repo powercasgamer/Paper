@@ -594,26 +594,25 @@ index 0000000000000000000000000000000000000000..89bf48fd581ee6580b91e2eb31dd532c
 +}
 diff --git a/src/main/java/io/papermc/paper/plugin/bootstrap/PluginBootstrapContextImpl.java b/src/main/java/io/papermc/paper/plugin/bootstrap/PluginBootstrapContextImpl.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..3963af448935f14f69303319c31a9307f0c5917b
+index 0000000000000000000000000000000000000000..9f34494feea188babe86b1e561a5cbb3a825a0a3
 --- /dev/null
 +++ b/src/main/java/io/papermc/paper/plugin/bootstrap/PluginBootstrapContextImpl.java
-@@ -0,0 +1,33 @@
+@@ -0,0 +1,32 @@
 +package io.papermc.paper.plugin.bootstrap;
 +
 +import io.papermc.paper.plugin.configuration.PluginMeta;
 +import io.papermc.paper.plugin.provider.PluginProvider;
-+import io.papermc.paper.registry.RegistryManager;
 +import java.nio.file.Path;
-+import java.util.logging.Logger;
++import net.kyori.adventure.text.logger.slf4j.ComponentLogger;
 +import org.jetbrains.annotations.NotNull;
 +
 +public record PluginBootstrapContextImpl(PluginMeta config, Path dataFolder,
-+                                         Logger logger) implements BootstrapContext {
++                                         ComponentLogger logger) implements BootstrapContext {
 +
 +    public static PluginBootstrapContextImpl of(PluginProvider<?> provider, Path pluginFolder) {
 +        Path dataFolder = pluginFolder.resolve(provider.getMeta().getDisplayName());
 +
-+        return new PluginBootstrapContextImpl(provider.getMeta(), dataFolder, provider.getLogger());
++        return new PluginBootstrapContextImpl(provider.getMeta(), dataFolder, ComponentLogger.logger(provider.getLogger().getName()));
 +    }
 +
 +    @Override
@@ -627,7 +626,7 @@ index 0000000000000000000000000000000000000000..3963af448935f14f69303319c31a9307
 +    }
 +
 +    @Override
-+    public @NotNull Logger getLogger() {
++    public @NotNull ComponentLogger getLogger() {
 +        return this.logger;
 +    }
 +}
