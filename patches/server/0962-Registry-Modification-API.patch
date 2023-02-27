@@ -8,156 +8,44 @@ public net.minecraft.server.RegistryLayer STATIC_ACCESS
 public net.minecraft.core.MappedRegistry validateWrite(Lnet/minecraft/resources/ResourceKey;)V
 
 diff --git a/src/main/java/io/papermc/paper/plugin/bootstrap/PluginBootstrapContextImpl.java b/src/main/java/io/papermc/paper/plugin/bootstrap/PluginBootstrapContextImpl.java
-new file mode 100644
-index 0000000000000000000000000000000000000000..3bdcc849691f80300c8bde41a4ca408cfbcdefaf
---- /dev/null
+index 3963af448935f14f69303319c31a9307f0c5917b..3bdcc849691f80300c8bde41a4ca408cfbcdefaf 100644
+--- a/src/main/java/io/papermc/paper/plugin/bootstrap/PluginBootstrapContextImpl.java
 +++ b/src/main/java/io/papermc/paper/plugin/bootstrap/PluginBootstrapContextImpl.java
-@@ -0,0 +1,38 @@
-+package io.papermc.paper.plugin.bootstrap;
-+
-+import io.papermc.paper.plugin.configuration.PluginMeta;
-+import io.papermc.paper.plugin.provider.PluginProvider;
-+import io.papermc.paper.registry.RegistryManager;
-+import java.nio.file.Path;
-+import java.util.logging.Logger;
-+import org.jetbrains.annotations.NotNull;
-+
-+public record PluginBootstrapContextImpl(PluginMeta config, Path dataFolder,
+@@ -8,12 +8,17 @@ import java.util.logging.Logger;
+ import org.jetbrains.annotations.NotNull;
+ 
+ public record PluginBootstrapContextImpl(PluginMeta config, Path dataFolder,
+-                                         Logger logger) implements BootstrapContext {
 +                                         Logger logger, RegistryManager registryManager) implements BootstrapContext {
-+
+ 
+-    public static PluginBootstrapContextImpl of(PluginProvider<?> provider, Path pluginFolder) {
 +    public static PluginBootstrapContextImpl of(PluginProvider<?> provider, Path pluginFolder, RegistryManager registryManager) {
-+        Path dataFolder = pluginFolder.resolve(provider.getMeta().getDisplayName());
-+
+         Path dataFolder = pluginFolder.resolve(provider.getMeta().getDisplayName());
+ 
+-        return new PluginBootstrapContextImpl(provider.getMeta(), dataFolder, provider.getLogger());
 +        return new PluginBootstrapContextImpl(provider.getMeta(), dataFolder, provider.getLogger(), registryManager);
 +    }
 +
 +    @Override
 +    public @NotNull RegistryManager getRegistryManager() {
 +        return this.registryManager;
-+    }
-+
-+    @Override
-+    public @NotNull PluginMeta getConfiguration() {
-+        return this.config;
-+    }
-+
-+    @Override
-+    public @NotNull Path getDataDirectory() {
-+        return this.dataFolder;
-+    }
-+
-+    @Override
-+    public @NotNull Logger getLogger() {
-+        return this.logger;
-+    }
-+}
-diff --git a/src/main/java/io/papermc/paper/plugin/bootstrap/PluginProviderContextImpl.java b/src/main/java/io/papermc/paper/plugin/bootstrap/PluginProviderContextImpl.java
-index 8249a7024537fccd99735b92abb1368e6647b5ae..86d2388b9459924596468d5aa761420d366222c8 100644
---- a/src/main/java/io/papermc/paper/plugin/bootstrap/PluginProviderContextImpl.java
-+++ b/src/main/java/io/papermc/paper/plugin/bootstrap/PluginProviderContextImpl.java
-@@ -17,12 +17,6 @@ public record PluginProviderContextImpl(PluginMeta config, Path dataFolder,
-         return new PluginProviderContextImpl(config, dataFolder, logger);
-     }
- 
--    public static PluginProviderContextImpl of(PluginProvider<?> provider, Path pluginFolder) {
--        Path dataFolder = pluginFolder.resolve(provider.getMeta().getDisplayName());
--
--        return new PluginProviderContextImpl(provider.getMeta(), dataFolder, provider.getLogger());
--    }
--
-     @Override
-     public @NotNull PluginMeta getConfiguration() {
-         return this.config;
-diff --git a/src/main/java/io/papermc/paper/plugin/entrypoint/LaunchEntryPointHandler.java b/src/main/java/io/papermc/paper/plugin/entrypoint/LaunchEntryPointHandler.java
-index 6c0f2c315387734f8dd4a7eca633aa0a9856dd17..48bc745ca9632fc46b5f786ff570434702eb47f2 100644
---- a/src/main/java/io/papermc/paper/plugin/entrypoint/LaunchEntryPointHandler.java
-+++ b/src/main/java/io/papermc/paper/plugin/entrypoint/LaunchEntryPointHandler.java
-@@ -4,6 +4,8 @@ import io.papermc.paper.plugin.provider.PluginProvider;
- import io.papermc.paper.plugin.storage.BootstrapProviderStorage;
- import io.papermc.paper.plugin.storage.ProviderStorage;
- import io.papermc.paper.plugin.storage.ServerPluginProviderStorage;
-+import it.unimi.dsi.fastutil.objects.Object2BooleanMap;
-+import it.unimi.dsi.fastutil.objects.Object2BooleanOpenHashMap;
- import org.jetbrains.annotations.ApiStatus;
- 
- import java.util.HashMap;
-@@ -16,9 +18,11 @@ public class LaunchEntryPointHandler implements EntrypointHandler {
- 
-     public static final LaunchEntryPointHandler INSTANCE = new LaunchEntryPointHandler();
-     private final Map<Entrypoint<?>, ProviderStorage<?>> storage = new HashMap<>();
-+    private final Object2BooleanMap<Entrypoint<?>> enteredMap = new Object2BooleanOpenHashMap<>();
- 
-     LaunchEntryPointHandler() {
-         this.populateProviderStorage();
-+        this.enteredMap.defaultReturnValue(false);
-     }
- 
-     // Utility
-@@ -34,6 +38,7 @@ public class LaunchEntryPointHandler implements EntrypointHandler {
-         }
- 
-         storage.enter();
-+        this.enteredMap.put(entrypoint, true);
      }
  
      @Override
-@@ -57,6 +62,10 @@ public class LaunchEntryPointHandler implements EntrypointHandler {
-         return storage;
-     }
- 
-+    public boolean hasEntered(Entrypoint<?> entrypoint) {
-+        return this.enteredMap.getBoolean(entrypoint);
-+    }
-+
-     // Reload only
-     public void populateProviderStorage() {
-         this.storage.put(Entrypoint.BOOTSTRAPPER, new BootstrapProviderStorage());
 diff --git a/src/main/java/io/papermc/paper/plugin/storage/BootstrapProviderStorage.java b/src/main/java/io/papermc/paper/plugin/storage/BootstrapProviderStorage.java
-index e5b70ff297febd936e64055b79f48712d65dbed9..442ce1395da4b34ce1ea81ed8a12946cdd8cd60b 100644
+index dc30b820006ca5aa3b6cc0c9bc9c8a833f6db06a..f6a178e7a7e359265f66dcb7fbbbe695f600fcad 100644
 --- a/src/main/java/io/papermc/paper/plugin/storage/BootstrapProviderStorage.java
 +++ b/src/main/java/io/papermc/paper/plugin/storage/BootstrapProviderStorage.java
-@@ -2,24 +2,19 @@ package io.papermc.paper.plugin.storage;
- 
- import com.mojang.logging.LogUtils;
- import io.papermc.paper.plugin.PluginInitializerManager;
-+import io.papermc.paper.plugin.bootstrap.BootstrapContext;
- import io.papermc.paper.plugin.bootstrap.PluginBootstrap;
--import io.papermc.paper.plugin.bootstrap.PluginProviderContext;
--import io.papermc.paper.plugin.bootstrap.PluginProviderContextImpl;
--import io.papermc.paper.plugin.provider.entrypoint.DependencyContext;
-+import io.papermc.paper.plugin.bootstrap.PluginBootstrapContextImpl;
- import io.papermc.paper.plugin.entrypoint.dependency.DependencyContextHolder;
- import io.papermc.paper.plugin.entrypoint.strategy.ModernPluginLoadingStrategy;
--import io.papermc.paper.plugin.entrypoint.strategy.PluginGraphCycleException;
- import io.papermc.paper.plugin.entrypoint.strategy.ProviderConfiguration;
- import io.papermc.paper.plugin.provider.PluginProvider;
- import io.papermc.paper.plugin.provider.ProviderStatus;
- import io.papermc.paper.plugin.provider.ProviderStatusHolder;
--import io.papermc.paper.plugin.provider.configuration.PaperPluginMeta;
--import io.papermc.paper.plugin.provider.configuration.type.DependencyConfiguration;
-+import io.papermc.paper.plugin.provider.entrypoint.DependencyContext;
-+import io.papermc.paper.registry.PaperRegistryListenerManager;
- import org.slf4j.Logger;
- 
--import java.util.ArrayList;
--import java.util.List;
--
- public class BootstrapProviderStorage extends SimpleProviderStorage<PluginBootstrap> {
- 
-     private static final Logger LOGGER = LogUtils.getLogger();
-@@ -36,7 +31,11 @@ public class BootstrapProviderStorage extends SimpleProviderStorage<PluginBootst
-             @Override
-             public boolean load(PluginProvider<PluginBootstrap> provider, PluginBootstrap provided) {
+@@ -33,7 +33,8 @@ public class BootstrapProviderStorage extends SimpleProviderStorage<PluginBootst
                  try {
--                    PluginProviderContext context = PluginProviderContextImpl.of(provider, PluginInitializerManager.instance().pluginDirectoryPath());
-+                     BootstrapContext context = PluginBootstrapContextImpl.of(
-+                        provider,
+                     BootstrapContext context = PluginBootstrapContextImpl.of(
+                         provider,
+-                        PluginInitializerManager.instance().pluginDirectoryPath()
 +                        PluginInitializerManager.instance().pluginDirectoryPath(),
 +                        PaperRegistryListenerManager.INSTANCE.forPlugin(provider.getMeta())
-+                    );
+                     );
                      provided.bootstrap(context);
                      return true;
-                 } catch (Exception e) {
 diff --git a/src/main/java/io/papermc/paper/registry/PaperRegistries.java b/src/main/java/io/papermc/paper/registry/PaperRegistries.java
 new file mode 100644
 index 0000000000000000000000000000000000000000..37ea7acf32872cfeb4f6c51d419bfe864ae48b38
@@ -1229,26 +1117,6 @@ index 38b3460acfb8f50be8f34a6b2bd04e9686472ea1..107c7c684524a1d383d3b2a47f2f8214
                  }
  
              } catch (Exception var20) {
-diff --git a/src/main/java/net/minecraft/server/Bootstrap.java b/src/main/java/net/minecraft/server/Bootstrap.java
-index a1192d1f6b99669f843e8d9a8928ff0e8c030559..237d0d9db8446e4353dbde03e0d9fa9facfba998 100644
---- a/src/main/java/net/minecraft/server/Bootstrap.java
-+++ b/src/main/java/net/minecraft/server/Bootstrap.java
-@@ -60,6 +60,7 @@ public class Bootstrap {
-             if (BuiltInRegistries.REGISTRY.keySet().isEmpty()) {
-                 throw new IllegalStateException("Unable to load registries");
-             } else {
-+                io.papermc.paper.plugin.entrypoint.LaunchEntryPointHandler.enterBootstrappers(); // Paper - Entrypoint for bootstrapping (before any registry is populated)
-                 FireBlock.bootStrap();
-                 ComposterBlock.bootStrap();
-                 if (EntityType.getKey(EntityType.PLAYER) == null) {
-@@ -72,7 +73,6 @@ public class Bootstrap {
-                     // Paper start
-                     BuiltInRegistries.bootStrap(() -> {
-                         net.minecraft.core.Registry.register(net.minecraft.core.registries.BuiltInRegistries.MATERIAL_CONDITION, new net.minecraft.resources.ResourceLocation("paper", "bedrock_condition_source"), net.minecraft.data.worldgen.SurfaceRuleData.PaperBedrockConditionSource.CODEC.codec());
--                        io.papermc.paper.plugin.entrypoint.LaunchEntryPointHandler.enterBootstrappers(); // Paper - Entrypoint for bootstrapping
-                     });
-                     // Paper end
-                     Bootstrap.wrapStreams();
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftRegistry.java b/src/main/java/org/bukkit/craftbukkit/CraftRegistry.java
 index 763f9d4740429840e78d3462277eb577d2d9f66a..e8462be9782374c5d380b9086c0ecaeef48f45da 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftRegistry.java
