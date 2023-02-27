@@ -1,17 +1,18 @@
 package io.papermc.testplugin;
 
 import io.papermc.paper.chat.ChatType;
+import io.papermc.paper.plugin.bootstrap.BootstrapContext;
 import io.papermc.paper.plugin.bootstrap.PluginBootstrap;
-import io.papermc.paper.plugin.bootstrap.PluginProviderContext;
 import io.papermc.paper.registry.RegistryKey2;
 import io.papermc.paper.registry.RegistryListener;
-import io.papermc.paper.registry.RegistryListenerManager;
+import io.papermc.paper.registry.RegistryManager;
 import io.papermc.paper.registry.event.FreezeRegistryEvent;
 import io.papermc.paper.registry.event.ModifyRegistryEvent;
 import org.bukkit.GameEvent;
 import org.bukkit.NamespacedKey;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.framework.qual.DefaultQualifier;
+import org.jetbrains.annotations.NotNull;
 
 @DefaultQualifier(NonNull.class)
 public class TestPluginBootstrap implements PluginBootstrap {
@@ -21,11 +22,11 @@ public class TestPluginBootstrap implements PluginBootstrap {
     static final NamespacedKey TO_MODIFY = GameEvent.BLOCK_OPEN.getKey();
 
     @Override
-    public void bootstrap(PluginProviderContext context) {
+    public void bootstrap(@NotNull BootstrapContext context) {
     }
 
     @Override
-    public void registryStuff(final RegistryListenerManager manager) {
+    public void registryStuff(final RegistryManager manager) {
         manager.registerFreezeListener(RegistryKey2.GAME_EVENT, new Test());
         manager.registerModificationListener(RegistryKey2.GAME_EVENT, new Test2());
         manager.registerFreezeListener(RegistryKey2.CHAT_TYPE, new AddChatType());

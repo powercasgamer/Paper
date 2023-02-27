@@ -7,6 +7,67 @@ Subject: [PATCH] Registry Modification API
 public net.minecraft.server.RegistryLayer STATIC_ACCESS
 public net.minecraft.core.MappedRegistry validateWrite(Lnet/minecraft/resources/ResourceKey;)V
 
+diff --git a/src/main/java/io/papermc/paper/plugin/bootstrap/PluginBootstrapContextImpl.java b/src/main/java/io/papermc/paper/plugin/bootstrap/PluginBootstrapContextImpl.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..3bdcc849691f80300c8bde41a4ca408cfbcdefaf
+--- /dev/null
++++ b/src/main/java/io/papermc/paper/plugin/bootstrap/PluginBootstrapContextImpl.java
+@@ -0,0 +1,38 @@
++package io.papermc.paper.plugin.bootstrap;
++
++import io.papermc.paper.plugin.configuration.PluginMeta;
++import io.papermc.paper.plugin.provider.PluginProvider;
++import io.papermc.paper.registry.RegistryManager;
++import java.nio.file.Path;
++import java.util.logging.Logger;
++import org.jetbrains.annotations.NotNull;
++
++public record PluginBootstrapContextImpl(PluginMeta config, Path dataFolder,
++                                         Logger logger, RegistryManager registryManager) implements BootstrapContext {
++
++    public static PluginBootstrapContextImpl of(PluginProvider<?> provider, Path pluginFolder, RegistryManager registryManager) {
++        Path dataFolder = pluginFolder.resolve(provider.getMeta().getDisplayName());
++
++        return new PluginBootstrapContextImpl(provider.getMeta(), dataFolder, provider.getLogger(), registryManager);
++    }
++
++    @Override
++    public @NotNull RegistryManager getRegistryManager() {
++        return this.registryManager;
++    }
++
++    @Override
++    public @NotNull PluginMeta getConfiguration() {
++        return this.config;
++    }
++
++    @Override
++    public @NotNull Path getDataDirectory() {
++        return this.dataFolder;
++    }
++
++    @Override
++    public @NotNull Logger getLogger() {
++        return this.logger;
++    }
++}
+diff --git a/src/main/java/io/papermc/paper/plugin/bootstrap/PluginProviderContextImpl.java b/src/main/java/io/papermc/paper/plugin/bootstrap/PluginProviderContextImpl.java
+index 8249a7024537fccd99735b92abb1368e6647b5ae..86d2388b9459924596468d5aa761420d366222c8 100644
+--- a/src/main/java/io/papermc/paper/plugin/bootstrap/PluginProviderContextImpl.java
++++ b/src/main/java/io/papermc/paper/plugin/bootstrap/PluginProviderContextImpl.java
+@@ -17,12 +17,6 @@ public record PluginProviderContextImpl(PluginMeta config, Path dataFolder,
+         return new PluginProviderContextImpl(config, dataFolder, logger);
+     }
+ 
+-    public static PluginProviderContextImpl of(PluginProvider<?> provider, Path pluginFolder) {
+-        Path dataFolder = pluginFolder.resolve(provider.getMeta().getDisplayName());
+-
+-        return new PluginProviderContextImpl(provider.getMeta(), dataFolder, provider.getLogger());
+-    }
+-
+     @Override
+     public @NotNull PluginMeta getConfiguration() {
+         return this.config;
 diff --git a/src/main/java/io/papermc/paper/plugin/entrypoint/LaunchEntryPointHandler.java b/src/main/java/io/papermc/paper/plugin/entrypoint/LaunchEntryPointHandler.java
 index 6c0f2c315387734f8dd4a7eca633aa0a9856dd17..48bc745ca9632fc46b5f786ff570434702eb47f2 100644
 --- a/src/main/java/io/papermc/paper/plugin/entrypoint/LaunchEntryPointHandler.java
@@ -52,31 +113,57 @@ index 6c0f2c315387734f8dd4a7eca633aa0a9856dd17..48bc745ca9632fc46b5f786ff5704347
      public void populateProviderStorage() {
          this.storage.put(Entrypoint.BOOTSTRAPPER, new BootstrapProviderStorage());
 diff --git a/src/main/java/io/papermc/paper/plugin/storage/BootstrapProviderStorage.java b/src/main/java/io/papermc/paper/plugin/storage/BootstrapProviderStorage.java
-index e5b70ff297febd936e64055b79f48712d65dbed9..a1b39750ab576e8d83826e8932547f81db8b22b2 100644
+index e5b70ff297febd936e64055b79f48712d65dbed9..442ce1395da4b34ce1ea81ed8a12946cdd8cd60b 100644
 --- a/src/main/java/io/papermc/paper/plugin/storage/BootstrapProviderStorage.java
 +++ b/src/main/java/io/papermc/paper/plugin/storage/BootstrapProviderStorage.java
-@@ -15,6 +15,7 @@ import io.papermc.paper.plugin.provider.ProviderStatus;
+@@ -2,24 +2,19 @@ package io.papermc.paper.plugin.storage;
+ 
+ import com.mojang.logging.LogUtils;
+ import io.papermc.paper.plugin.PluginInitializerManager;
++import io.papermc.paper.plugin.bootstrap.BootstrapContext;
+ import io.papermc.paper.plugin.bootstrap.PluginBootstrap;
+-import io.papermc.paper.plugin.bootstrap.PluginProviderContext;
+-import io.papermc.paper.plugin.bootstrap.PluginProviderContextImpl;
+-import io.papermc.paper.plugin.provider.entrypoint.DependencyContext;
++import io.papermc.paper.plugin.bootstrap.PluginBootstrapContextImpl;
+ import io.papermc.paper.plugin.entrypoint.dependency.DependencyContextHolder;
+ import io.papermc.paper.plugin.entrypoint.strategy.ModernPluginLoadingStrategy;
+-import io.papermc.paper.plugin.entrypoint.strategy.PluginGraphCycleException;
+ import io.papermc.paper.plugin.entrypoint.strategy.ProviderConfiguration;
+ import io.papermc.paper.plugin.provider.PluginProvider;
+ import io.papermc.paper.plugin.provider.ProviderStatus;
  import io.papermc.paper.plugin.provider.ProviderStatusHolder;
- import io.papermc.paper.plugin.provider.configuration.PaperPluginMeta;
- import io.papermc.paper.plugin.provider.configuration.type.DependencyConfiguration;
+-import io.papermc.paper.plugin.provider.configuration.PaperPluginMeta;
+-import io.papermc.paper.plugin.provider.configuration.type.DependencyConfiguration;
++import io.papermc.paper.plugin.provider.entrypoint.DependencyContext;
 +import io.papermc.paper.registry.PaperRegistryListenerManager;
  import org.slf4j.Logger;
  
- import java.util.ArrayList;
-@@ -38,6 +39,7 @@ public class BootstrapProviderStorage extends SimpleProviderStorage<PluginBootst
+-import java.util.ArrayList;
+-import java.util.List;
+-
+ public class BootstrapProviderStorage extends SimpleProviderStorage<PluginBootstrap> {
+ 
+     private static final Logger LOGGER = LogUtils.getLogger();
+@@ -36,7 +31,11 @@ public class BootstrapProviderStorage extends SimpleProviderStorage<PluginBootst
+             @Override
+             public boolean load(PluginProvider<PluginBootstrap> provider, PluginBootstrap provided) {
                  try {
-                     PluginProviderContext context = PluginProviderContextImpl.of(provider, PluginInitializerManager.instance().pluginDirectoryPath());
+-                    PluginProviderContext context = PluginProviderContextImpl.of(provider, PluginInitializerManager.instance().pluginDirectoryPath());
++                     BootstrapContext context = PluginBootstrapContextImpl.of(
++                        provider,
++                        PluginInitializerManager.instance().pluginDirectoryPath(),
++                        PaperRegistryListenerManager.INSTANCE.forPlugin(provider.getMeta())
++                    );
                      provided.bootstrap(context);
-+                    provided.registryStuff(PaperRegistryListenerManager.INSTANCE.forPlugin(provider.getMeta()));
                      return true;
                  } catch (Exception e) {
-                     LOGGER.error("Failed to run bootstrapper for %s. This plugin will not be loaded.".formatted(provider.getSource()), e);
 diff --git a/src/main/java/io/papermc/paper/registry/PaperRegistries.java b/src/main/java/io/papermc/paper/registry/PaperRegistries.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..8b7d4378e98af9c145e873d196da6eb6cf8348ee
+index 0000000000000000000000000000000000000000..37ea7acf32872cfeb4f6c51d419bfe864ae48b38
 --- /dev/null
 +++ b/src/main/java/io/papermc/paper/registry/PaperRegistries.java
-@@ -0,0 +1,38 @@
+@@ -0,0 +1,51 @@
 +package io.papermc.paper.registry;
 +
 +import com.google.common.collect.ImmutableList;
@@ -85,8 +172,10 @@ index 0000000000000000000000000000000000000000..8b7d4378e98af9c145e873d196da6eb6
 +import java.util.Map;
 +import java.util.function.Function;
 +import java.util.stream.Collectors;
++import net.minecraft.core.Registry;
 +import net.minecraft.core.registries.Registries;
 +import net.minecraft.resources.ResourceKey;
++import org.bukkit.Keyed;
 +import org.bukkit.craftbukkit.generator.strucutre.CraftStructure;
 +import org.bukkit.craftbukkit.generator.strucutre.CraftStructureType;
 +
@@ -112,15 +201,26 @@ index 0000000000000000000000000000000000000000..8b7d4378e98af9c145e873d196da6eb6
 +    static final Map<ResourceKey<?>, RegistryEntry<?, ?>> BY_RESOURCE_KEY = REGISTRY_ENTRIES.stream()
 +        .collect(Collectors.toMap(RegistryEntry::resourceKey, Function.identity()));
 +
++
++    @SuppressWarnings("unchecked")
++    public static <M, T extends Keyed> RegistryEntry<M, T> getEntry(final ResourceKey<? extends Registry<M>> resourceKey) {
++        return (RegistryEntry<M, T>) BY_RESOURCE_KEY.get(resourceKey);
++    }
++
++    @SuppressWarnings("unchecked")
++    public static <M, T extends Keyed> RegistryEntry<M, T> getEntry(final RegistryKey2<T> registryKey) {
++        return (RegistryEntry<M, T>) BY_REGISTRY_KEY.get(registryKey);
++    }
++
 +    private PaperRegistries() {
 +    }
 +}
 diff --git a/src/main/java/io/papermc/paper/registry/PaperRegistryAccess.java b/src/main/java/io/papermc/paper/registry/PaperRegistryAccess.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..d28f4eac59d2292a7bf19c5ca2b1feed829f9981
+index 0000000000000000000000000000000000000000..9d1f9d9c5268466f8e4ce00f3402888cb9602242
 --- /dev/null
 +++ b/src/main/java/io/papermc/paper/registry/PaperRegistryAccess.java
-@@ -0,0 +1,92 @@
+@@ -0,0 +1,100 @@
 +package io.papermc.paper.registry;
 +
 +import io.papermc.paper.registry.entry.RegistryEntry;
@@ -181,6 +281,14 @@ index 0000000000000000000000000000000000000000..d28f4eac59d2292a7bf19c5ca2b1feed
 +        return registry;
 +    }
 +
++    public <M, T extends Keyed, B extends PaperRegistryBuilder<M, T>> PaperWritableRegistry<M, T, B> getWritableRegistry(final RegistryKey2<T> key) {
++        final Registry<T> registry = this.getRegistry(key);
++        if (registry instanceof PaperWritableRegistry<?, T, ?>) {
++            return (PaperWritableRegistry<M, T, B>) registry;
++        }
++        throw new IllegalArgumentException(key + " does not point to a writable registry");
++    }
++
 +    @SuppressWarnings("unchecked")
 +    public <M, T extends Keyed> void createRegistry(final net.minecraft.core.Registry<M> registry) {
 +        final @Nullable RegistryEntry<M, T> entry = (RegistryEntry<M, T>) PaperRegistries.BY_RESOURCE_KEY.get(registry.key());
@@ -229,10 +337,10 @@ index 0000000000000000000000000000000000000000..5cae0cfc8b4d023f75b0ab22d7bd4331
 +}
 diff --git a/src/main/java/io/papermc/paper/registry/PaperRegistryListenerManager.java b/src/main/java/io/papermc/paper/registry/PaperRegistryListenerManager.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..509cff0345c9cd85d8f14d4aa889e2584738e249
+index 0000000000000000000000000000000000000000..ca5116d9a954f92ea8b835ec42951bd731bea27e
 --- /dev/null
 +++ b/src/main/java/io/papermc/paper/registry/PaperRegistryListenerManager.java
-@@ -0,0 +1,128 @@
+@@ -0,0 +1,106 @@
 +package io.papermc.paper.registry;
 +
 +import com.google.common.base.Preconditions;
@@ -243,10 +351,7 @@ index 0000000000000000000000000000000000000000..509cff0345c9cd85d8f14d4aa889e258
 +import io.papermc.paper.registry.entry.RegistryEntry;
 +import io.papermc.paper.registry.event.FreezeRegistryEvent;
 +import io.papermc.paper.registry.event.ModifyRegistryEvent;
-+import java.util.ArrayList;
-+import java.util.IdentityHashMap;
-+import java.util.List;
-+import java.util.Map;
++import io.papermc.paper.registry.event.RegistryListenerList;
 +import net.minecraft.core.MappedRegistry;
 +import net.minecraft.core.Registry;
 +import net.minecraft.resources.ResourceKey;
@@ -260,17 +365,18 @@ index 0000000000000000000000000000000000000000..509cff0345c9cd85d8f14d4aa889e258
 +
 +    public static final PaperRegistryListenerManager INSTANCE = new PaperRegistryListenerManager();
 +
-+    private final Map<RegistryKey2<?>, List<RegisteredListener<RegistryListener.Freeze<?, ?>>>> freezes = new IdentityHashMap<>();
-+    private final Map<RegistryKey2<?>, List<RegisteredListener<RegistryListener.Modification<?, ?>>>> modifications = new IdentityHashMap<>();
++    @SuppressWarnings({"rawtypes", "unchecked"})
++    private final RegistryListenerList<FreezeRegistryEvent<?, ?>, RegistryListener.Freeze> freezes =
++        new RegistryListenerList<>(RegistryEntry.Writable.class, RegistryListener.Freeze::beforeFreeze);
++    @SuppressWarnings({"rawtypes", "unchecked"})
++    private final RegistryListenerList<ModifyRegistryEvent<?, ?>, RegistryListener.Modification> modifications =
++        new RegistryListenerList<>(RegistryEntry.Modifiable.class, RegistryListener.Modification::beforeRegister);
 +
 +    private PaperRegistryListenerManager() {
 +    }
 +
-+    public RegistryListenerManager forPlugin(final PluginMeta pluginMeta) {
-+        return new PluginRegistryListenerManager(pluginMeta);
-+    }
-+
-+    private record RegisteredListener<L>(PluginMeta pluginMeta, L listener) {
++    public RegistryManager forPlugin(final PluginMeta pluginMeta) {
++        return new PluginRegistryManager(pluginMeta);
 +    }
 +
 +    public <M> M registerWithListeners(final Registry<M> registry, final String id, final M nms) {
@@ -285,11 +391,10 @@ index 0000000000000000000000000000000000000000..509cff0345c9cd85d8f14d4aa889e258
 +        return this.registerWithListeners(registry, key, nms, Lifecycle.stable());
 +    }
 +
-+    @SuppressWarnings("unchecked")
 +    public <M, T extends Keyed, B extends PaperRegistryBuilder<M, T>> M registerWithListeners(final Registry<M> registry, final ResourceKey<M> key, final M nms, final Lifecycle lifecycle) {
 +        Preconditions.checkState(LaunchEntryPointHandler.INSTANCE.hasEntered(Entrypoint.BOOTSTRAPPER), registry.key() + " tried to run modification listeners before bootstrappers have been called"); // verify that bootstrappers have been called
-+        final @Nullable RegistryEntry<M, T> entry = (RegistryEntry<M, T>) PaperRegistries.BY_RESOURCE_KEY.get(registry.key());
-+        if (!(entry instanceof RegistryEntry.Modifiable<?, ?, ?>) || !this.modifications.containsKey(entry.key())) {
++        final @Nullable RegistryEntry<M, T> entry = PaperRegistries.getEntry(registry.key());
++        if (!(entry instanceof RegistryEntry.Modifiable<?, ?, ?>) || !this.modifications.hasListeners(entry.key())) {
 +            ((net.minecraft.core.WritableRegistry<M>) registry).register(key, nms, lifecycle);
 +            return nms;
 +        }
@@ -299,15 +404,9 @@ index 0000000000000000000000000000000000000000..509cff0345c9cd85d8f14d4aa889e258
 +        return this.registerWithListeners(registry, craftRegistry.view, modifiableEntry, key, nms, builder, lifecycle);
 +    }
 +
-+    @SuppressWarnings("unchecked")
 +    public <M, T extends Keyed, B extends PaperRegistryBuilder<M, T>> M registerWithListeners(final Registry<M> registry, final RegistryView<T> registryView, final RegistryEntry.Modifiable<M, T, B> entry, final ResourceKey<M> key, final @Nullable M oldNms, final B builder, final Lifecycle lifecycle) {
 +        final ModifyRegistryEvent<T, B> event = entry.createModifyEvent(builder, registryView);
-+        if (this.modifications.containsKey(entry.key())) {
-+            this.modifications.get(entry.key()).forEach(listener -> {
-+                // TODO exception catching
-+                ((RegistryListener.Modification<T, B>) listener.listener()).beforeRegister(event);
-+            });
-+        }
++        this.modifications.dispatch(entry.key(), event);
 +        if (oldNms != null) {
 +            ((MappedRegistry<M>) registry).clearIntrusiveHolder(oldNms);
 +        }
@@ -316,48 +415,35 @@ index 0000000000000000000000000000000000000000..509cff0345c9cd85d8f14d4aa889e258
 +        return newNms;
 +    }
 +
-+    @SuppressWarnings("unchecked")
 +    public <M, T extends Keyed, B extends PaperRegistryBuilder<M, T>> void runFreezeListeners(final ResourceKey<? extends Registry<M>> resourceKey) {
-+        final @Nullable RegistryEntry<M, T> entry = (RegistryEntry<M, T>) PaperRegistries.BY_RESOURCE_KEY.get(resourceKey);
-+        if (!(entry instanceof RegistryEntry.Writable<M,?,?> writable) || !this.freezes.containsKey(entry.key())) {
++        final @Nullable RegistryEntry<M, T> entry = PaperRegistries.getEntry(resourceKey);
++        if (!(entry instanceof RegistryEntry.Writable<M, ?, ?>) || !this.freezes.hasListeners(entry.key())) {
 +            return;
 +        }
-+        final FreezeRegistryEvent<T, B> event = ((RegistryEntry.Writable<M, T, B>)writable).createFreezeEvent((PaperWritableRegistry<M, T, B>) PaperRegistryAccess.INSTANCE.getRegistry(entry.key()));
-+        this.freezes.get(entry.key()).forEach(rl -> {
-+            // TODO exception catching
-+            ((RegistryListener.Freeze<T, B>) rl.listener()).beforeFreeze(event);
-+        });
++        final FreezeRegistryEvent<T, B> event = ((RegistryEntry.Writable<M, T, B>) entry).createFreezeEvent(PaperRegistryAccess.instance().getWritableRegistry(entry.key()));
++        this.freezes.dispatch(entry.key(), event);
 +
 +        // no listeners should run after being frozen
-+        this.freezes.remove(entry.key());
-+        this.modifications.remove(entry.key());
-+
++        this.freezes.unregister(entry.key());
++        this.modifications.unregister(entry.key());
 +    }
 +
-+    private final class PluginRegistryListenerManager implements RegistryListenerManager {
++    private final class PluginRegistryManager implements RegistryManager {
 +
 +        private final PluginMeta pluginMeta;
 +
-+        private PluginRegistryListenerManager(final PluginMeta pluginMeta) {
++        private PluginRegistryManager(final PluginMeta pluginMeta) {
 +            this.pluginMeta = pluginMeta;
 +        }
 +
 +        @Override
-+        public <T extends Keyed, B extends RegistryBuilder<T>> void registerFreezeListener(final RegistryKey2<T> registryKey, final RegistryListener.Freeze<T, B> listener) {
-+            if (PaperRegistries.BY_REGISTRY_KEY.get(registryKey) instanceof RegistryEntry.Writable<?,?,?>) {
-+                PaperRegistryListenerManager.this.freezes.computeIfAbsent(registryKey, ignored -> new ArrayList<>()).add(new RegisteredListener<>(this.pluginMeta, listener));
-+            } else {
-+                throw new IllegalArgumentException(registryKey + " does not support freeze listeners");
-+            }
++        public <T extends Keyed, B extends RegistryBuilder<T>> void registerFreezeListener(final RegistryKey2<T> key, final RegistryListener.Freeze<T, B> listener) {
++            PaperRegistryListenerManager.this.freezes.register(key, this.pluginMeta, listener);
 +        }
 +
 +        @Override
-+        public <T extends Keyed, B extends RegistryBuilder<T>> void registerModificationListener(final RegistryKey2<T> registryKey, final RegistryListener.Modification<T, B> listener) {
-+            if (PaperRegistries.BY_REGISTRY_KEY.get(registryKey) instanceof RegistryEntry.Modifiable<?,?,?>) {
-+                PaperRegistryListenerManager.this.modifications.computeIfAbsent(registryKey, ignored -> new ArrayList<>()).add(new RegisteredListener<>(this.pluginMeta, listener));
-+            } else {
-+                throw new IllegalArgumentException(registryKey + " does not support modification listeners");
-+            }
++        public <T extends Keyed, B extends RegistryBuilder<T>> void registerModificationListener(final RegistryKey2<T> key, final RegistryListener.Modification<T, B> listener) {
++            PaperRegistryListenerManager.this.modifications.register(key, this.pluginMeta, listener);
 +        }
 +    }
 +}
@@ -811,6 +897,70 @@ index 0000000000000000000000000000000000000000..b92b673abef26fffec1c007a728f2fed
 +        return (key, m) -> original.apply(key instanceof NamespacedKey ns ? ns : new NamespacedKey(key.namespace(), key.value()), m);
 +    }
 +}
+diff --git a/src/main/java/io/papermc/paper/registry/event/RegistryListenerList.java b/src/main/java/io/papermc/paper/registry/event/RegistryListenerList.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..85a72bb647363463ce93b9a35595a339bd1f6d30
+--- /dev/null
++++ b/src/main/java/io/papermc/paper/registry/event/RegistryListenerList.java
+@@ -0,0 +1,58 @@
++package io.papermc.paper.registry.event;
++
++import com.mojang.logging.LogUtils;
++import io.papermc.paper.plugin.configuration.PluginMeta;
++import io.papermc.paper.registry.PaperRegistries;
++import io.papermc.paper.registry.RegistryKey2;
++import io.papermc.paper.registry.entry.RegistryEntry;
++import java.util.ArrayList;
++import java.util.Collections;
++import java.util.IdentityHashMap;
++import java.util.List;
++import java.util.Map;
++import java.util.function.BiConsumer;
++import org.bukkit.Keyed;
++import org.slf4j.Logger;
++
++public final class RegistryListenerList<E extends RegistryEvent<?, ?>, L> {
++
++    private static final Logger LOGGER = LogUtils.getClassLogger();
++
++    private final Map<RegistryKey2<?>, List<Entry<L>>> listeners = new IdentityHashMap<>();
++    private final Class<? extends RegistryEntry<?, ?>> typeSupported;
++    private final BiConsumer<L, E> eventDispatcher;
++
++    @SuppressWarnings({"unchecked", "rawtypes"})
++    public RegistryListenerList(final Class<? extends RegistryEntry> typeSupported, final BiConsumer<L, E> eventDispatcher) {
++        this.typeSupported = (Class<? extends RegistryEntry<?, ?>>) typeSupported;
++        this.eventDispatcher = eventDispatcher;
++    }
++
++    public <T extends Keyed> void register(final RegistryKey2<T> key, final PluginMeta owner, final L listener) {
++        if (!this.typeSupported.isInstance(PaperRegistries.getEntry(key))) {
++            throw new IllegalArgumentException(key + " does not support the listener " + listener);
++        }
++        this.listeners.computeIfAbsent(key, ignored -> new ArrayList<>()).add(new Entry<>(owner, listener));
++    }
++
++    public void unregister(final RegistryKey2<?> key) {
++        this.listeners.remove(key);
++    }
++
++    public void dispatch(final RegistryKey2<?> key, final E event) {
++        for (final Entry<L> entry : this.listeners.getOrDefault(key, Collections.emptyList())) {
++            try {
++                this.eventDispatcher.accept(entry.listener(), event);
++            } catch (Throwable ex) {
++                LOGGER.error("Could not pass registry event {} to {}", event.eventName(), entry.owner.getDisplayName(), ex);
++            }
++        }
++    }
++
++    public boolean hasListeners(final RegistryKey2<?> key) {
++        return this.listeners.containsKey(key);
++    }
++
++    private record Entry<L>(PluginMeta owner, L listener) {
++    }
++}
 diff --git a/src/main/java/io/papermc/paper/registry/event/SimpleFreezeRegistryEvent.java b/src/main/java/io/papermc/paper/registry/event/SimpleFreezeRegistryEvent.java
 new file mode 100644
 index 0000000000000000000000000000000000000000..13f64d771e9bf237c2c7d1e0d3a35ccaa6ed2931
@@ -830,16 +980,15 @@ index 0000000000000000000000000000000000000000..13f64d771e9bf237c2c7d1e0d3a35cca
 +}
 diff --git a/src/main/java/io/papermc/paper/registry/event/SimpleModifyRegistryEvent.java b/src/main/java/io/papermc/paper/registry/event/SimpleModifyRegistryEvent.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..2f18b0be92ec41dc0207185fcde2c4cb0d6c7f43
+index 0000000000000000000000000000000000000000..a4eb7c2fd1cf86f28d00cfbce794052c8598d0c1
 --- /dev/null
 +++ b/src/main/java/io/papermc/paper/registry/event/SimpleModifyRegistryEvent.java
-@@ -0,0 +1,15 @@
+@@ -0,0 +1,13 @@
 +package io.papermc.paper.registry.event;
 +
 +import io.papermc.paper.registry.RegistryBuilder;
 +import io.papermc.paper.registry.RegistryKey2;
 +import io.papermc.paper.registry.RegistryView;
-+import io.papermc.paper.registry.event.ModifyRegistryEvent;
 +import org.bukkit.Keyed;
 +
 +public record SimpleModifyRegistryEvent<T extends Keyed, B extends RegistryBuilder<T>>(
@@ -847,7 +996,6 @@ index 0000000000000000000000000000000000000000..2f18b0be92ec41dc0207185fcde2c4cb
 +    RegistryKey2<T> registryKey,
 +    RegistryView<T> registryView
 +) implements ModifyRegistryEvent<T, B> {
-+
 +}
 diff --git a/src/main/java/io/papermc/paper/registry/event/package-info.java b/src/main/java/io/papermc/paper/registry/event/package-info.java
 new file mode 100644

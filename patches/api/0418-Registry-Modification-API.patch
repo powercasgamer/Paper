@@ -4,25 +4,41 @@ Date: Sat, 25 Feb 2023 13:45:44 -0800
 Subject: [PATCH] Registry Modification API
 
 
+diff --git a/src/main/java/io/papermc/paper/plugin/bootstrap/BootstrapContext.java b/src/main/java/io/papermc/paper/plugin/bootstrap/BootstrapContext.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..15dfdc10b5c8759112692602fe51970d2829d2b1
+--- /dev/null
++++ b/src/main/java/io/papermc/paper/plugin/bootstrap/BootstrapContext.java
+@@ -0,0 +1,18 @@
++package io.papermc.paper.plugin.bootstrap;
++
++import io.papermc.paper.registry.RegistryManager;
++import org.jetbrains.annotations.ApiStatus;
++import org.jetbrains.annotations.NotNull;
++
++@ApiStatus.Experimental
++@ApiStatus.NonExtendable
++public interface BootstrapContext extends PluginProviderContext {
++
++    /**
++     * Provides the plugin's registry manager for
++     * handling registry events.
++     *
++     * @return the registry manager
++     */
++    @NotNull RegistryManager getRegistryManager();
++}
 diff --git a/src/main/java/io/papermc/paper/plugin/bootstrap/PluginBootstrap.java b/src/main/java/io/papermc/paper/plugin/bootstrap/PluginBootstrap.java
-index ea84b11e8682e73fcd563fec65e76b707546a99e..07c37862321d198696833eb2085f434b8b43c8cd 100644
+index ea84b11e8682e73fcd563fec65e76b707546a99e..d09e1f68de4938de0243b5732bd4bad63834b12a 100644
 --- a/src/main/java/io/papermc/paper/plugin/bootstrap/PluginBootstrap.java
 +++ b/src/main/java/io/papermc/paper/plugin/bootstrap/PluginBootstrap.java
-@@ -1,6 +1,7 @@
- package io.papermc.paper.plugin.bootstrap;
- 
- import io.papermc.paper.plugin.provider.util.ProviderUtil;
-+import io.papermc.paper.registry.RegistryListenerManager;
- import org.bukkit.plugin.java.JavaPlugin;
- import org.jetbrains.annotations.ApiStatus;
- import org.jetbrains.annotations.NotNull;
-@@ -26,6 +27,9 @@ public interface PluginBootstrap {
+@@ -24,8 +24,7 @@ public interface PluginBootstrap {
+      *
+      * @param context the server provided context
       */
-     void bootstrap(@NotNull PluginProviderContext context);
- 
-+    default void registryStuff(final @NotNull RegistryListenerManager manager) {
-+    }
-+
+-    void bootstrap(@NotNull PluginProviderContext context);
+-
++    void bootstrap(@NotNull BootstrapContext context);
      /**
       * Called by the server to instantiate your main class.
       * Plugins may override this logic to define custom creation logic for said instance, like passing addition
@@ -199,11 +215,11 @@ index 0000000000000000000000000000000000000000..cb4215611907fd4cbb2bb242a34436fc
 +        void beforeFreeze(@NotNull FreezeRegistryEvent<T, B> event);
 +    }
 +}
-diff --git a/src/main/java/io/papermc/paper/registry/RegistryListenerManager.java b/src/main/java/io/papermc/paper/registry/RegistryListenerManager.java
+diff --git a/src/main/java/io/papermc/paper/registry/RegistryManager.java b/src/main/java/io/papermc/paper/registry/RegistryManager.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..3a6002eb7dc22630fbebf6b768b49a810435f4f7
+index 0000000000000000000000000000000000000000..5788dc7abe8bb13f294dd0bf6f64acf666cdd652
 --- /dev/null
-+++ b/src/main/java/io/papermc/paper/registry/RegistryListenerManager.java
++++ b/src/main/java/io/papermc/paper/registry/RegistryManager.java
 @@ -0,0 +1,17 @@
 +package io.papermc.paper.registry;
 +
@@ -216,7 +232,7 @@ index 0000000000000000000000000000000000000000..3a6002eb7dc22630fbebf6b768b49a81
 + */
 +@ApiStatus.NonExtendable
 +@ApiStatus.Experimental
-+public interface RegistryListenerManager {
++public interface RegistryManager {
 +
 +    <T extends Keyed, B extends RegistryBuilder<T>> void registerModificationListener(@NotNull RegistryKey2<T> registryKey, @NotNull RegistryListener.Modification<T, B> listener);
 +
@@ -311,10 +327,10 @@ index 0000000000000000000000000000000000000000..a894e4d9c61e7a53033e00e5d8cadcd5
 +}
 diff --git a/src/main/java/io/papermc/paper/registry/event/RegistryEvent.java b/src/main/java/io/papermc/paper/registry/event/RegistryEvent.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..46777a59c1cfac7a8508537b10a9019b0c9e4483
+index 0000000000000000000000000000000000000000..cf7accaa9091babc0eeb583becf3c05b67df98be
 --- /dev/null
 +++ b/src/main/java/io/papermc/paper/registry/event/RegistryEvent.java
-@@ -0,0 +1,17 @@
+@@ -0,0 +1,21 @@
 +package io.papermc.paper.registry.event;
 +
 +import io.papermc.paper.registry.RegistryBuilder;
@@ -331,6 +347,10 @@ index 0000000000000000000000000000000000000000..46777a59c1cfac7a8508537b10a9019b
 +    @NotNull RegistryKey2<T> registryKey();
 +
 +    @NotNull RegistryView<T> registryView();
++
++    default @NotNull String eventName() {
++        return this.getClass().getSimpleName();
++    }
 +}
 diff --git a/src/main/java/org/bukkit/Bukkit.java b/src/main/java/org/bukkit/Bukkit.java
 index ac9b690fcccb60b587e5345f12f1383afd0a73a1..b6de417e494ba0ec7928864a8083c2b365633cab 100644

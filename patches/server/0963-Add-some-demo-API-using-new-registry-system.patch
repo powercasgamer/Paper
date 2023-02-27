@@ -85,7 +85,7 @@ index 0000000000000000000000000000000000000000..0126a46462f8a757a6e50f7b6733a84e
 +    }
 +}
 diff --git a/src/main/java/io/papermc/paper/registry/PaperRegistries.java b/src/main/java/io/papermc/paper/registry/PaperRegistries.java
-index 8b7d4378e98af9c145e873d196da6eb6cf8348ee..77c00bb5d9682a2d65f9ec4239d1049971555df1 100644
+index 37ea7acf32872cfeb4f6c51d419bfe864ae48b38..26b379a6c14f1f205f451dacfb0a1b08cb45de93 100644
 --- a/src/main/java/io/papermc/paper/registry/PaperRegistries.java
 +++ b/src/main/java/io/papermc/paper/registry/PaperRegistries.java
 @@ -1,7 +1,9 @@
@@ -98,7 +98,7 @@ index 8b7d4378e98af9c145e873d196da6eb6cf8348ee..77c00bb5d9682a2d65f9ec4239d10499
  import java.util.List;
  import java.util.Map;
  import java.util.function.Function;
-@@ -20,9 +22,11 @@ public final class PaperRegistries {
+@@ -22,9 +24,11 @@ public final class PaperRegistries {
      static {
          REGISTRY_ENTRIES = ImmutableList.<RegistryEntry<?, ?>>builder()
              // built-ins
