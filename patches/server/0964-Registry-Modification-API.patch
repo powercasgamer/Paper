@@ -245,7 +245,7 @@ index 0000000000000000000000000000000000000000..5cae0cfc8b4d023f75b0ab22d7bd4331
 +}
 diff --git a/src/main/java/io/papermc/paper/registry/PaperRegistryListenerManager.java b/src/main/java/io/papermc/paper/registry/PaperRegistryListenerManager.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..d213f8beaeb4583a3898147bf57792a02c4711c3
+index 0000000000000000000000000000000000000000..bbe5c9fb45061fce7bb284097b5ff9f1f4ad3548
 --- /dev/null
 +++ b/src/main/java/io/papermc/paper/registry/PaperRegistryListenerManager.java
 @@ -0,0 +1,108 @@
@@ -315,7 +315,7 @@ index 0000000000000000000000000000000000000000..d213f8beaeb4583a3898147bf57792a0
 +    }
 +
 +    public <M, T extends Keyed, B extends PaperRegistryBuilder<M, T>> M registerWithListeners(final Registry<M> registry, final RegistryView<T> registryView, final RegistryEntry.Modifiable<M, T, B> entry, final ResourceKey<M> key, final @Nullable M oldNms, final B builder, final Lifecycle lifecycle) {
-+        final RegistryAdditionEvent<T, B> event = entry.createModifyEvent(builder, registryView);
++        final RegistryAdditionEvent<T, B> event = entry.createAdditionEvent(builder, registryView);
 +        this.modifications.dispatch(entry.key(), event);
 +        if (oldNms != null) {
 +            ((MappedRegistry<M>) registry).clearIntrusiveHolder(oldNms);
@@ -330,7 +330,7 @@ index 0000000000000000000000000000000000000000..d213f8beaeb4583a3898147bf57792a0
 +        if (!(entry instanceof RegistryEntry.Writable<M, ?, ?>) || !this.freezes.hasListeners(entry.key())) {
 +            return;
 +        }
-+        final RegistryPreFreezeEvent<T, B> event = ((RegistryEntry.Writable<M, T, B>) entry).createFreezeEvent(PaperRegistryAccess.instance().getWritableRegistry(entry.key()));
++        final RegistryPreFreezeEvent<T, B> event = ((RegistryEntry.Writable<M, T, B>) entry).createPreFreezeEvent(PaperRegistryAccess.instance().getWritableRegistry(entry.key()));
 +        this.freezes.dispatch(entry.key(), event);
 +
 +        // no listeners should run after being frozen
@@ -359,7 +359,7 @@ index 0000000000000000000000000000000000000000..d213f8beaeb4583a3898147bf57792a0
 +}
 diff --git a/src/main/java/io/papermc/paper/registry/PaperWritableRegistry.java b/src/main/java/io/papermc/paper/registry/PaperWritableRegistry.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..5d9be6c0ba65830560046edff907394eae4f5ade
+index 0000000000000000000000000000000000000000..4211c18fbc05088cda0bc008f9afc2ecc739c3e3
 --- /dev/null
 +++ b/src/main/java/io/papermc/paper/registry/PaperWritableRegistry.java
 @@ -0,0 +1,48 @@
@@ -367,8 +367,8 @@ index 0000000000000000000000000000000000000000..5d9be6c0ba65830560046edff907394e
 +
 +import com.mojang.serialization.Lifecycle;
 +import io.papermc.paper.registry.entry.RegistryEntry;
-+import io.papermc.paper.registry.event.MutableRegistryView;
-+import io.papermc.paper.registry.event.PaperMutableRegistryView;
++import io.papermc.paper.registry.event.WritableRegistryView;
++import io.papermc.paper.registry.event.PaperWritableRegistryView;
 +import java.util.function.Consumer;
 +import net.minecraft.core.MappedRegistry;
 +import net.minecraft.resources.ResourceKey;
@@ -382,13 +382,13 @@ index 0000000000000000000000000000000000000000..5d9be6c0ba65830560046edff907394e
 +
 +    private final RegistryEntry.Writable<M, T, B> entry;
 +    private final MappedRegistry<M> registry;
-+    public final MutableRegistryView<T, B> modifiableView;
++    public final WritableRegistryView<T, B> modifiableView;
 +
 +    public PaperWritableRegistry(final RegistryEntry.Writable<M, T, B> entry, final MappedRegistry<M> registry) {
 +        super(registry, null);
 +        this.entry = entry;
 +        this.registry = registry;
-+        this.modifiableView = new PaperMutableRegistryView<>(this.registry, this);
++        this.modifiableView = new PaperWritableRegistryView<>(this.registry, this);
 +    }
 +
 +    public void register(final NamespacedKey key, final Consumer<? super B> value) {
@@ -503,7 +503,7 @@ index 0000000000000000000000000000000000000000..bbff550ca762da3234edb29ff60b70a5
 +}
 diff --git a/src/main/java/io/papermc/paper/registry/entry/ModifiableRegistryEntry.java b/src/main/java/io/papermc/paper/registry/entry/ModifiableRegistryEntry.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..b17cdb9e689a5dafa6763f7a9f2358a53fb3ed53
+index 0000000000000000000000000000000000000000..d699e2dd96543ef45181c983853b41ca3a4c2029
 --- /dev/null
 +++ b/src/main/java/io/papermc/paper/registry/entry/ModifiableRegistryEntry.java
 @@ -0,0 +1,40 @@
@@ -531,7 +531,7 @@ index 0000000000000000000000000000000000000000..b17cdb9e689a5dafa6763f7a9f2358a5
 +    }
 +
 +    @Override
-+    public RegistryAdditionEvent<T, B> createModifyEvent(final B initialBuilder, final RegistryView<T> view) {
++    public RegistryAdditionEvent<T, B> createAdditionEvent(final B initialBuilder, final RegistryView<T> view) {
 +        return new SimpleRegistryAdditionEvent<>(initialBuilder, this.key(), view);
 +    }
 +
@@ -549,7 +549,7 @@ index 0000000000000000000000000000000000000000..b17cdb9e689a5dafa6763f7a9f2358a5
 +}
 diff --git a/src/main/java/io/papermc/paper/registry/entry/RegistryEntry.java b/src/main/java/io/papermc/paper/registry/entry/RegistryEntry.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..23ae6c28a386051f4412b9bcd254c33344096891
+index 0000000000000000000000000000000000000000..cd7258e24cc44d31ce13e7c50774ce33c091db83
 --- /dev/null
 +++ b/src/main/java/io/papermc/paper/registry/entry/RegistryEntry.java
 @@ -0,0 +1,86 @@
@@ -594,7 +594,7 @@ index 0000000000000000000000000000000000000000..23ae6c28a386051f4412b9bcd254c333
 +
 +    interface Modifiable<M, T extends Keyed, B extends PaperRegistryBuilder<M, T>> extends RegistryEntry<M, T> {
 +
-+        RegistryAdditionEvent<T, B> createModifyEvent(B initialBuilder, RegistryView<T> view);
++        RegistryAdditionEvent<T, B> createAdditionEvent(B initialBuilder, RegistryView<T> view);
 +
 +        B fillBuilder(NamespacedKey key, M nms);
 +    }
@@ -604,7 +604,7 @@ index 0000000000000000000000000000000000000000..23ae6c28a386051f4412b9bcd254c333
 +        @Override
 +        PaperWritableRegistry<M, T, B> createRegistry(@Nullable Registry<M> nmsRegistry);
 +
-+        RegistryPreFreezeEvent<T, B> createFreezeEvent(PaperWritableRegistry<M, T, B> registry);
++        RegistryPreFreezeEvent<T, B> createPreFreezeEvent(PaperWritableRegistry<M, T, B> registry);
 +
 +        interface BuiltIn<M, T extends Keyed, B extends PaperRegistryBuilder<M, T>> extends Writable<M, T, B>, RegistryEntry.BuiltIn<M, T> {
 +
@@ -641,7 +641,7 @@ index 0000000000000000000000000000000000000000..23ae6c28a386051f4412b9bcd254c333
 +}
 diff --git a/src/main/java/io/papermc/paper/registry/entry/WritableRegistryEntry.java b/src/main/java/io/papermc/paper/registry/entry/WritableRegistryEntry.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..e83e5e1b9f4ef6ea858c656b1255e8e7456b6582
+index 0000000000000000000000000000000000000000..e1723bf4388f779becc8c2e0446fa6901fb04511
 --- /dev/null
 +++ b/src/main/java/io/papermc/paper/registry/entry/WritableRegistryEntry.java
 @@ -0,0 +1,45 @@
@@ -675,7 +675,7 @@ index 0000000000000000000000000000000000000000..e83e5e1b9f4ef6ea858c656b1255e8e7
 +    }
 +
 +    @Override
-+    public RegistryPreFreezeEvent<T, B> createFreezeEvent(final PaperWritableRegistry<M, T, B> registry) {
++    public RegistryPreFreezeEvent<T, B> createPreFreezeEvent(final PaperWritableRegistry<M, T, B> registry) {
 +        return new SimpleRegistryPreFreezeEvent<>(this.key(), registry.modifiableView);
 +    }
 +
@@ -701,42 +701,6 @@ index 0000000000000000000000000000000000000000..e4c94d6860e0f5b643cde1ded20b5503
 +
 +import org.checkerframework.checker.nullness.qual.NonNull;
 +import org.checkerframework.framework.qual.DefaultQualifier;
-diff --git a/src/main/java/io/papermc/paper/registry/event/PaperMutableRegistryView.java b/src/main/java/io/papermc/paper/registry/event/PaperMutableRegistryView.java
-new file mode 100644
-index 0000000000000000000000000000000000000000..b1823d751be8f73eb504ed8290bdeefc7cc59ad8
---- /dev/null
-+++ b/src/main/java/io/papermc/paper/registry/event/PaperMutableRegistryView.java
-@@ -0,0 +1,30 @@
-+package io.papermc.paper.registry.event;
-+
-+import io.papermc.paper.registry.PaperRegistryBuilder;
-+import io.papermc.paper.registry.PaperWritableRegistry;
-+import java.util.function.BiFunction;
-+import java.util.function.Consumer;
-+import net.kyori.adventure.key.Key;
-+import net.kyori.adventure.key.Keyed;
-+import net.minecraft.core.Registry;
-+import org.bukkit.NamespacedKey;
-+
-+public class PaperMutableRegistryView<M, T extends Keyed, B extends PaperRegistryBuilder<M, T>> extends PaperRegistryView<M, T> implements MutableRegistryView<T, B> {
-+
-+    private final PaperWritableRegistry<M, ? super T, B> writableRegistry;
-+
-+    @SuppressWarnings("unchecked")
-+    public PaperMutableRegistryView(final Registry<M> registry, final PaperWritableRegistry<M, ? super T, B> writableRegistry) {
-+        super(registry, (BiFunction<NamespacedKey, M, T>) convert(writableRegistry::minecraftToBukkit));
-+        this.writableRegistry = writableRegistry;
-+    }
-+
-+    @Override
-+    public void register(final Key key, final Consumer<? super B> value) {
-+        this.writableRegistry.register(key instanceof NamespacedKey ns ? ns : new NamespacedKey(key.namespace(), key.value()), value);
-+    }
-+
-+    private static <M, T> BiFunction<NamespacedKey, M, T> convert(final BiFunction<NamespacedKey, M, T> original) {
-+        return original;
-+    }
-+}
 diff --git a/src/main/java/io/papermc/paper/registry/event/PaperRegistryView.java b/src/main/java/io/papermc/paper/registry/event/PaperRegistryView.java
 new file mode 100644
 index 0000000000000000000000000000000000000000..b92b673abef26fffec1c007a728f2fedf55e7197
@@ -804,6 +768,42 @@ index 0000000000000000000000000000000000000000..b92b673abef26fffec1c007a728f2fed
 +
 +    private static <M, T extends Keyed> BiFunction<? super Key, M, T> convert(final BiFunction<NamespacedKey, M, T> original) {
 +        return (key, m) -> original.apply(key instanceof NamespacedKey ns ? ns : new NamespacedKey(key.namespace(), key.value()), m);
++    }
++}
+diff --git a/src/main/java/io/papermc/paper/registry/event/PaperWritableRegistryView.java b/src/main/java/io/papermc/paper/registry/event/PaperWritableRegistryView.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..99ceaefd539c4bd5cd0c4942f31d6bfecc92c016
+--- /dev/null
++++ b/src/main/java/io/papermc/paper/registry/event/PaperWritableRegistryView.java
+@@ -0,0 +1,30 @@
++package io.papermc.paper.registry.event;
++
++import io.papermc.paper.registry.PaperRegistryBuilder;
++import io.papermc.paper.registry.PaperWritableRegistry;
++import java.util.function.BiFunction;
++import java.util.function.Consumer;
++import net.kyori.adventure.key.Key;
++import net.kyori.adventure.key.Keyed;
++import net.minecraft.core.Registry;
++import org.bukkit.NamespacedKey;
++
++public class PaperWritableRegistryView<M, T extends Keyed, B extends PaperRegistryBuilder<M, T>> extends PaperRegistryView<M, T> implements WritableRegistryView<T, B> {
++
++    private final PaperWritableRegistry<M, ? super T, B> writableRegistry;
++
++    @SuppressWarnings("unchecked")
++    public PaperWritableRegistryView(final Registry<M> registry, final PaperWritableRegistry<M, ? super T, B> writableRegistry) {
++        super(registry, (BiFunction<NamespacedKey, M, T>) convert(writableRegistry::minecraftToBukkit));
++        this.writableRegistry = writableRegistry;
++    }
++
++    @Override
++    public void register(final Key key, final Consumer<? super B> value) {
++        this.writableRegistry.register(key instanceof NamespacedKey ns ? ns : new NamespacedKey(key.namespace(), key.value()), value);
++    }
++
++    private static <M, T> BiFunction<NamespacedKey, M, T> convert(final BiFunction<NamespacedKey, M, T> original) {
++        return original;
 +    }
 +}
 diff --git a/src/main/java/io/papermc/paper/registry/event/RegistryListenerList.java b/src/main/java/io/papermc/paper/registry/event/RegistryListenerList.java
@@ -891,7 +891,7 @@ index 0000000000000000000000000000000000000000..1abf98e71f046c0324caaf9f3a14ed32
 +}
 diff --git a/src/main/java/io/papermc/paper/registry/event/SimpleRegistryPreFreezeEvent.java b/src/main/java/io/papermc/paper/registry/event/SimpleRegistryPreFreezeEvent.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..e75251f58834c3bf0524d371f8054b4713e193e0
+index 0000000000000000000000000000000000000000..c551a6663fb1807702c1069c1f0f35c4107d11ce
 --- /dev/null
 +++ b/src/main/java/io/papermc/paper/registry/event/SimpleRegistryPreFreezeEvent.java
 @@ -0,0 +1,11 @@
@@ -903,7 +903,7 @@ index 0000000000000000000000000000000000000000..e75251f58834c3bf0524d371f8054b47
 +
 +public record SimpleRegistryPreFreezeEvent<T extends Keyed, B extends RegistryBuilder<T>>(
 +    RegistryKey<T> registryKey,
-+    MutableRegistryView<T, B> registryView
++    WritableRegistryView<T, B> registryView
 +) implements RegistryPreFreezeEvent<T, B> {
 +}
 diff --git a/src/main/java/io/papermc/paper/registry/event/package-info.java b/src/main/java/io/papermc/paper/registry/event/package-info.java
