@@ -4,74 +4,35 @@ Date: Sat, 25 Feb 2023 21:26:44 -0800
 Subject: [PATCH] Add some demo API using new registry system
 
 
-diff --git a/src/main/java/io/papermc/paper/chat/ChatType.java b/src/main/java/io/papermc/paper/chat/ChatType.java
-new file mode 100644
-index 0000000000000000000000000000000000000000..574dbfc883f503d76c2bdf61a87304839263e132
---- /dev/null
-+++ b/src/main/java/io/papermc/paper/chat/ChatType.java
-@@ -0,0 +1,21 @@
-+package io.papermc.paper.chat;
-+
-+import io.papermc.paper.registry.RegistryBuilder;
-+import org.bukkit.Keyed;
-+import org.jetbrains.annotations.ApiStatus;
-+import org.jetbrains.annotations.NotNull;
-+
-+@ApiStatus.NonExtendable
-+@ApiStatus.Experimental
-+public interface ChatType extends net.kyori.adventure.chat.ChatType, Keyed {
-+
-+    @NotNull String textTranslationKey();
-+
-+    @ApiStatus.NonExtendable
-+    @ApiStatus.Experimental
-+    interface Builder extends RegistryBuilder<ChatType>, ChatType {
-+
-+        @NotNull Builder textTranslationKey(@NotNull String key);
-+    }
-+
-+}
 diff --git a/src/main/java/io/papermc/paper/registry/RegistryKey.java b/src/main/java/io/papermc/paper/registry/RegistryKey.java
-index 1b4bb4fe106bc020fb78ad1f8a2ea1b35e2ee4f1..3e2232be284d01ed919d595d31172a650a5f4f44 100644
+index d476c90f589985a88487635c7622d2aa60e6c42c..e0975b5152dd47afd14d2b0e1a9d1a9c279d45c4 100644
 --- a/src/main/java/io/papermc/paper/registry/RegistryKey.java
 +++ b/src/main/java/io/papermc/paper/registry/RegistryKey.java
-@@ -1,6 +1,7 @@
- package io.papermc.paper.registry;
- 
- import com.google.common.collect.Sets;
-+import io.papermc.paper.chat.ChatType;
- import java.util.Set;
- import net.kyori.adventure.key.Keyed;
- import org.bukkit.GameEvent;
-@@ -18,11 +19,13 @@ public final class RegistryKey<T extends Keyed> {
-     /***********************
+@@ -18,6 +18,7 @@ public final class RegistryKey<T extends Keyed> {
+     /* ******************* *
       * Built-in registries *
-      ***********************/
+      * ******************* */
 +    public static final RegistryKey<GameEvent> GAME_EVENT = create("game_event", GameEvent.class);
      public static final RegistryKey<StructureType> STRUCTURE_TYPE = create("worldgen/structure_type", StructureType.class);
  
-     /**************************
-      * Data-driven registries *
-      **************************/
-+    public static final RegistryKey<ChatType> CHAT_TYPE = create("chat_type", ChatType.class);
-     public static final RegistryKey<Structure> STRUCTURE = create("worldgen/structure", Structure.class);
- 
-     private final NamespacedKey key;
+     /* ********************** *
 diff --git a/src/main/java/org/bukkit/GameEvent.java b/src/main/java/org/bukkit/GameEvent.java
-index 4808824a55628d1e2344981d40d3665d572117e0..6ecd162c6f797be124ff1ce5af16d9903283facb 100644
+index 4808824a55628d1e2344981d40d3665d572117e0..d77c3ee6de3aebe786122e31008c5194916ef157 100644
 --- a/src/main/java/org/bukkit/GameEvent.java
 +++ b/src/main/java/org/bukkit/GameEvent.java
-@@ -10,7 +10,8 @@ import org.jetbrains.annotations.Nullable;
+@@ -10,9 +10,9 @@ import org.jetbrains.annotations.Nullable;
  /**
   * Represents a generic Mojang game event.
   */
 -public final class GameEvent implements Keyed {
 +@org.jetbrains.annotations.ApiStatus.NonExtendable // Paper
-+public class GameEvent implements Keyed { // Paper
++public abstract class GameEvent implements Keyed { // Paper
  
-     private static final Map<NamespacedKey, GameEvent> GAME_EVENTS = new HashMap<>();
+-    private static final Map<NamespacedKey, GameEvent> GAME_EVENTS = new HashMap<>();
      //
-@@ -93,7 +94,8 @@ public final class GameEvent implements Keyed {
+     public static final GameEvent BLOCK_ACTIVATE = getEvent("block_activate");
+     public static final GameEvent BLOCK_ATTACH = getEvent("block_attach");
+@@ -93,10 +93,10 @@ public final class GameEvent implements Keyed {
      //
      private final NamespacedKey key;
  
@@ -80,23 +41,71 @@ index 4808824a55628d1e2344981d40d3665d572117e0..6ecd162c6f797be124ff1ce5af16d990
 +    protected GameEvent(NamespacedKey key) { // Paper
          this.key = key;
  
-         GAME_EVENTS.put(key, this);
-@@ -129,4 +131,13 @@ public final class GameEvent implements Keyed {
+-        GAME_EVENTS.put(key, this);
+     }
+ 
+     @NotNull
+@@ -110,10 +110,12 @@ public final class GameEvent implements Keyed {
+      *
+      * @param namespacedKey the key
+      * @return the event or null
++     * @deprecated use {@link Registry#GAME_EVENT}
+      */
+     @Nullable
++    @Deprecated // Paper
+     public static GameEvent getByKey(@NotNull NamespacedKey namespacedKey) {
+-        return GAME_EVENTS.get(namespacedKey);
++        return org.bukkit.Registry.GAME_EVENT.get(namespacedKey); // Paper
+     }
+ 
+     /**
+@@ -123,10 +125,42 @@ public final class GameEvent implements Keyed {
+      */
+     @NotNull
+     public static Collection<GameEvent> values() {
+-        return Collections.unmodifiableCollection(GAME_EVENTS.values());
++        return Collections.unmodifiableCollection(com.google.common.collect.Lists.newArrayList(Registry.GAME_EVENT));
+     }
+ 
      private static GameEvent getEvent(String vanilla) {
-         return new GameEvent(NamespacedKey.minecraft(vanilla));
+-        return new GameEvent(NamespacedKey.minecraft(vanilla));
++        return java.util.Objects.requireNonNull(Registry.GAME_EVENT.get(NamespacedKey.minecraft(vanilla))); // Paper
      }
 +    // Paper start
++    /**
++     * Gets the range of the event which is used to
++     * notify listeners of the event.
++     *
++     * @return the range
++     */
++    public abstract int getRange();
++
 +    @org.jetbrains.annotations.ApiStatus.Experimental
 +    @org.jetbrains.annotations.ApiStatus.NonExtendable
 +    public interface Builder extends io.papermc.paper.registry.RegistryBuilder<GameEvent> {
++
++        /**
++         * Gets the range of the event which is used to
++         * notify listeners of the event.
++         *
++         * @return the range
++         */
 +        int range();
 +
++        /**
++         * Sets the range of the event which is used to
++         * notify listeners of the event.
++         *
++         * @param range the range
++         * @return the builder
++         */
++        @org.jetbrains.annotations.Contract("_ -> this")
 +        @NotNull Builder range(int range);
 +    }
 +    // Paper end
  }
 diff --git a/src/main/java/org/bukkit/Registry.java b/src/main/java/org/bukkit/Registry.java
-index 278a643a80207a27f4dd011da8f6d3b675535914..088ffe1923d768181581bb5678573e78af75f6d7 100644
+index 2374e1dd7049c6d32296e6da87051f1bdebd7031..87f9e309d5b8f0c4a16cc0b55c8c107706f85983 100644
 --- a/src/main/java/org/bukkit/Registry.java
 +++ b/src/main/java/org/bukkit/Registry.java
 @@ -199,20 +199,7 @@ public interface Registry<T extends Keyed> extends Iterable<T> {

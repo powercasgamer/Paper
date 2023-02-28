@@ -94,7 +94,7 @@ index 0000000000000000000000000000000000000000..14e901c6731f1a2f9b36127d9d0f1c7c
 +}
 diff --git a/src/main/java/io/papermc/paper/registry/RegistryKey.java b/src/main/java/io/papermc/paper/registry/RegistryKey.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..1b4bb4fe106bc020fb78ad1f8a2ea1b35e2ee4f1
+index 0000000000000000000000000000000000000000..d476c90f589985a88487635c7622d2aa60e6c42c
 --- /dev/null
 +++ b/src/main/java/io/papermc/paper/registry/RegistryKey.java
 @@ -0,0 +1,54 @@
@@ -115,14 +115,14 @@ index 0000000000000000000000000000000000000000..1b4bb4fe106bc020fb78ad1f8a2ea1b3
 +
 +    static final Set<RegistryKey<?>> REGISTRY_KEYS = Sets.newIdentityHashSet();
 +
-+    /***********************
++    /* ******************* *
 +     * Built-in registries *
-+     ***********************/
++     * ******************* */
 +    public static final RegistryKey<StructureType> STRUCTURE_TYPE = create("worldgen/structure_type", StructureType.class);
 +
-+    /**************************
++    /* ********************** *
 +     * Data-driven registries *
-+     **************************/
++     * ********************** */
 +    public static final RegistryKey<Structure> STRUCTURE = create("worldgen/structure", Structure.class);
 +
 +    private final NamespacedKey key;

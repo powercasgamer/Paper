@@ -1,6 +1,5 @@
 package io.papermc.testplugin;
 
-import io.papermc.paper.chat.ChatType;
 import io.papermc.paper.plugin.bootstrap.BootstrapContext;
 import io.papermc.paper.plugin.bootstrap.PluginBootstrap;
 import io.papermc.paper.registry.event.listener.RegistryAdditionListener;
@@ -20,15 +19,13 @@ public class TestPluginBootstrap implements PluginBootstrap {
 
     static final NamespacedKey NEW_EVENT = new NamespacedKey("machine_maker", "best_event");
     static final NamespacedKey NEW_CHAT = new NamespacedKey("machine_maker", "epic_chat");
-    static final NamespacedKey TO_MODIFY = GameEvent.BLOCK_OPEN.getKey();
+    static final NamespacedKey TO_MODIFY = NamespacedKey.minecraft("block_open");
 
     @Override
     public void bootstrap(@NotNull BootstrapContext context) {
         final RegistryManager manager = context.getRegistryManager();
         manager.registerPreFreezeListener(RegistryKey.GAME_EVENT, new Test());
         manager.registerAdditionListener(RegistryKey.GAME_EVENT, new Test2());
-        manager.registerPreFreezeListener(RegistryKey.CHAT_TYPE, new AddChatType());
-        manager.registerAdditionListener(RegistryKey.CHAT_TYPE, new ModifyChatType());
     }
 
     private static final class Test implements RegistryPreFreezeListener<GameEvent, GameEvent.Builder> {
@@ -45,24 +42,6 @@ public class TestPluginBootstrap implements PluginBootstrap {
         public void beforeRegister(final RegistryAdditionEvent<GameEvent, GameEvent.Builder> event) {
             if (event.builder().key().equals(TO_MODIFY)) {
                 event.builder().range(event.builder().range() * 2);
-            }
-        }
-    }
-
-    private static final class AddChatType implements RegistryPreFreezeListener<ChatType, ChatType.Builder> {
-        @Override
-        public void beforeFreeze(final RegistryPreFreezeEvent<ChatType, ChatType.Builder> event) {
-            event.registryView().register(NEW_CHAT, builder -> {
-                builder.textTranslationKey("epic chat from %s: %s");
-            });
-        }
-    }
-
-    private static final class ModifyChatType implements RegistryAdditionListener<ChatType, ChatType.Builder> {
-        @Override
-        public void beforeRegister(final RegistryAdditionEvent<ChatType, ChatType.Builder> event) {
-            if (event.builder().key().equals(net.kyori.adventure.chat.ChatType.CHAT.key())) {
-                event.builder().textTranslationKey("<<%s>> %s");
             }
         }
     }
