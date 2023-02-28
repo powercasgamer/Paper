@@ -5,10 +5,10 @@ Subject: [PATCH] Support registry mod API with GameEvent
 
 
 diff --git a/src/main/java/io/papermc/paper/registry/RegistryKey.java b/src/main/java/io/papermc/paper/registry/RegistryKey.java
-index d476c90f589985a88487635c7622d2aa60e6c42c..e0975b5152dd47afd14d2b0e1a9d1a9c279d45c4 100644
+index 38a68a5c5074b725e9d75d525b4a280c60f5fd2d..308d99d1fbfd6722edb5e6e49e0e468eff49e366 100644
 --- a/src/main/java/io/papermc/paper/registry/RegistryKey.java
 +++ b/src/main/java/io/papermc/paper/registry/RegistryKey.java
-@@ -18,6 +18,7 @@ public final class RegistryKey<T extends Keyed> {
+@@ -24,6 +24,7 @@ public final class RegistryKey<T extends Keyed> {
      /* ******************* *
       * Built-in registries *
       * ******************* */
@@ -17,18 +17,17 @@ index d476c90f589985a88487635c7622d2aa60e6c42c..e0975b5152dd47afd14d2b0e1a9d1a9c
  
      /* ********************** *
 diff --git a/src/main/java/org/bukkit/GameEvent.java b/src/main/java/org/bukkit/GameEvent.java
-index 4808824a55628d1e2344981d40d3665d572117e0..0017fbdb5a2ab027c7b372dfb4d5e52a5dc73063 100644
+index 4808824a55628d1e2344981d40d3665d572117e0..4b01e058b99fecdbe832991f0978c508273051dc 100644
 --- a/src/main/java/org/bukkit/GameEvent.java
 +++ b/src/main/java/org/bukkit/GameEvent.java
-@@ -1,5 +1,7 @@
+@@ -1,5 +1,6 @@
  package org.bukkit;
  
 +import io.papermc.paper.registry.Reference; // Paper
-+import io.papermc.paper.registry.RegistryKey;
  import java.util.Collection;
  import java.util.Collections;
  import java.util.HashMap;
-@@ -10,93 +12,94 @@ import org.jetbrains.annotations.Nullable;
+@@ -10,93 +11,94 @@ import org.jetbrains.annotations.Nullable;
  /**
   * Represents a generic Mojang game event.
   */
@@ -188,7 +187,7 @@ index 4808824a55628d1e2344981d40d3665d572117e0..0017fbdb5a2ab027c7b372dfb4d5e52a
      }
  
      @NotNull
-@@ -110,10 +113,12 @@ public final class GameEvent implements Keyed {
+@@ -110,10 +112,12 @@ public final class GameEvent implements Keyed {
       *
       * @param namespacedKey the key
       * @return the event or null
@@ -202,7 +201,7 @@ index 4808824a55628d1e2344981d40d3665d572117e0..0017fbdb5a2ab027c7b372dfb4d5e52a
      }
  
      /**
-@@ -123,10 +128,42 @@ public final class GameEvent implements Keyed {
+@@ -123,10 +127,42 @@ public final class GameEvent implements Keyed {
       */
      @NotNull
      public static Collection<GameEvent> values() {
@@ -213,7 +212,7 @@ index 4808824a55628d1e2344981d40d3665d572117e0..0017fbdb5a2ab027c7b372dfb4d5e52a
 -    private static GameEvent getEvent(String vanilla) {
 -        return new GameEvent(NamespacedKey.minecraft(vanilla));
 +    private static Reference<GameEvent> getEvent(String vanilla) { // Paper
-+        return Reference.create(RegistryKey.GAME_EVENT, NamespacedKey.minecraft(vanilla)); // Paper
++        return Reference.create(io.papermc.paper.registry.RegistryKey.GAME_EVENT, NamespacedKey.minecraft(vanilla)); // Paper
      }
 +    // Paper start
 +    /**
