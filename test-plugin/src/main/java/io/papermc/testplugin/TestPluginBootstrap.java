@@ -19,7 +19,7 @@ public class TestPluginBootstrap implements PluginBootstrap {
 
     static final NamespacedKey NEW_EVENT = new NamespacedKey("machine_maker", "best_event");
     static final NamespacedKey NEW_CHAT = new NamespacedKey("machine_maker", "epic_chat");
-    static final NamespacedKey TO_MODIFY = NamespacedKey.minecraft("block_open");
+    static final NamespacedKey TO_MODIFY = GameEvent.BLOCK_OPEN.getKey();
 
     @Override
     public void bootstrap(@NotNull BootstrapContext context) {

@@ -1,7 +1,7 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Jake Potrebic <jake.m.potrebic@gmail.com>
 Date: Sat, 25 Feb 2023 21:25:08 -0800
-Subject: [PATCH] Add some demo API using new registry system
+Subject: [PATCH] Support registry mod API with GameEvent
 
 
 diff --git a/src/main/java/io/papermc/paper/registry/PaperRegistries.java b/src/main/java/io/papermc/paper/registry/PaperRegistries.java
@@ -110,3 +110,23 @@ index 0cb8464145995aea393f1d2c0d065fb3fc6ac635..7a0168ce52e60ca713663620131378a0
      }
  
      @Override
+diff --git a/src/main/java/org/bukkit/craftbukkit/util/Commodore.java b/src/main/java/org/bukkit/craftbukkit/util/Commodore.java
+index ebbbfc318439fec33331d71563e528cd3429e541..394a406a2779c7b46ed24aebab6822e01c78d359 100644
+--- a/src/main/java/org/bukkit/craftbukkit/util/Commodore.java
++++ b/src/main/java/org/bukkit/craftbukkit/util/Commodore.java
+@@ -260,6 +260,15 @@ public class Commodore
+                             }
+                         }
+                         // Paper end - DisplaySlot
++                        // Paper start - change GameEvent to Reference
++                        if ( owner.equals( "org/bukkit/GameEvent" ) && desc.equals("Lorg/bukkit/GameEvent;" ) )
++                        {
++                            super.visitFieldInsn( opcode, owner, name, "Lio/papermc/paper/registry/Reference;" );
++                            super.visitMethodInsn( Opcodes.INVOKEINTERFACE, "io/papermc/paper/registry/Reference", "value", "()Lorg/bukkit/Keyed;", true );
++                            super.visitTypeInsn( Opcodes.CHECKCAST, "org/bukkit/GameEvent" );
++                            return;
++                        }
++                        // Paper end
+ 
+                         if ( owner.equals( "org/bukkit/block/Biome" ) )
+                         {

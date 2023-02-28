@@ -1,6 +1,6 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Jake Potrebic <jake.m.potrebic@gmail.com>
-Date: Sat, 25 Feb 2023 13:45:44 -0800
+Date: Wed, 2 Mar 2022 13:36:21 -0800
 Subject: [PATCH] Registry Modification API
 
 
@@ -27,6 +27,127 @@ index adbfa20e69b093af125f1aef7d138d9cb0fbeb3a..15dfdc10b5c8759112692602fe51970d
 +     */
 +    @NotNull RegistryManager getRegistryManager();
  }
+diff --git a/src/main/java/io/papermc/paper/registry/Reference.java b/src/main/java/io/papermc/paper/registry/Reference.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..6b93ca09c46ed9f37ee8acd89526ff8dbea7bd61
+--- /dev/null
++++ b/src/main/java/io/papermc/paper/registry/Reference.java
+@@ -0,0 +1,63 @@
++package io.papermc.paper.registry;
++
++import org.bukkit.Keyed;
++import org.bukkit.NamespacedKey;
++import org.bukkit.Registry;
++import org.jetbrains.annotations.NotNull;
++import org.jetbrains.annotations.Nullable;
++
++/**
++ * Represents a reference to a server-backed registry value that may
++ * change or not exist. These are mainly useful for {@link io.papermc.paper.plugin.bootstrap.PluginBootstrap}s
++ * to have access to the vanilla keys of types without requiring the value to exist yet.
++ *
++ * @param <T> type of the value
++ */
++public interface Reference<T extends Keyed> extends Keyed {
++
++    /**
++     * Gets the value from the registry with the key.
++     *
++     * @return the value
++     * @throws java.util.NoSuchElementException if there is no value with this key
++     */
++    @NotNull T value();
++
++    /**
++     * Gets the value from the registry with the key.
++     *
++     * @return the value or null if it doesn't exist
++     */
++    @Nullable T valueOrNull();
++
++    /**
++     * Gets if the value exists at the key in the registry.
++     *
++     * @return true if the value exists
++     */
++    boolean exists();
++
++    /**
++     * Creates a reference to a registered value.
++     *
++     * @param registry the registry the value is located in
++     * @param key the key to the value
++     * @param <T> the type of the value
++     * @return a reference
++     */
++    static <T extends Keyed> @NotNull Reference<T> create(@NotNull Registry<T> registry, @NotNull NamespacedKey key) {
++        return new ReferenceImpl<>(registry, key);
++    }
++
++    /**
++     * Creates a reference to a registered value.
++     *
++     * @param registryKey the registry key for the registry
++     * @param key the key to the value
++     * @param <T> the type of the value
++     * @return a reference
++     */
++    static <T extends Keyed> @NotNull Reference<T> create(@NotNull RegistryKey<T> registryKey, @NotNull NamespacedKey key) {
++        return new ReferenceImpl<>(registryKey, key);
++    }
++}
+diff --git a/src/main/java/io/papermc/paper/registry/ReferenceImpl.java b/src/main/java/io/papermc/paper/registry/ReferenceImpl.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..cf804db2f2f0d1d8a03ae9a4ef34c3bc81e3c3a9
+--- /dev/null
++++ b/src/main/java/io/papermc/paper/registry/ReferenceImpl.java
+@@ -0,0 +1,46 @@
++package io.papermc.paper.registry;
++
++import com.google.common.base.Suppliers;
++import java.util.function.Supplier;
++import org.bukkit.Keyed;
++import org.bukkit.NamespacedKey;
++import org.bukkit.Registry;
++import org.jetbrains.annotations.NotNull;
++import org.jetbrains.annotations.Nullable;
++
++import java.util.NoSuchElementException;
++
++record ReferenceImpl<T extends Keyed>(@NotNull Supplier<Registry<T>> registry, @NotNull NamespacedKey key) implements Reference<T> {
++
++    ReferenceImpl(@NotNull Registry<T> registry, @NotNull NamespacedKey key) {
++        this(() -> registry, key);
++    }
++
++    ReferenceImpl(@NotNull RegistryKey<T> registryKey, @NotNull NamespacedKey key) {
++        this(Suppliers.memoize(() -> RegistryAccess.INSTANCE.getRegistry(registryKey)), key);
++    }
++
++    @Override
++    public @NotNull T value() {
++        final @Nullable T value = this.registry.get().get(this.key);
++        if (value == null) {
++            throw new NoSuchElementException("No such value with key " + this.key);
++        }
++        return value;
++    }
++
++    @Override
++    public @Nullable T valueOrNull() {
++        return this.registry.get().get(this.key);
++    }
++
++    @Override
++    public boolean exists() {
++        return this.registry.get().get(this.key) != null; // TODO replace with Registry#containsKey() when that's added
++    }
++
++    @Override
++    public @NotNull NamespacedKey getKey() {
++        return this.key;
++    }
++}
 diff --git a/src/main/java/io/papermc/paper/registry/RegistryAccess.java b/src/main/java/io/papermc/paper/registry/RegistryAccess.java
 new file mode 100644
 index 0000000000000000000000000000000000000000..224d200adbec9c5fb888aad5182e70e90b00d3d6
@@ -347,10 +468,10 @@ index 0000000000000000000000000000000000000000..cbefe6d5eb18e9f554c85160b234a989
 +    void beforeFreeze(@NotNull RegistryPreFreezeEvent<T, B> event);
 +}
 diff --git a/src/main/java/org/bukkit/Bukkit.java b/src/main/java/org/bukkit/Bukkit.java
-index ac9b690fcccb60b587e5345f12f1383afd0a73a1..883197e6bd72f9481a35afac6ba11129efba94ee 100644
+index ceb8d207843df5ddc852d44928286648a652eedb..607575264bfff93cfba6ee9fb771dfef3ffd7c18 100644
 --- a/src/main/java/org/bukkit/Bukkit.java
 +++ b/src/main/java/org/bukkit/Bukkit.java
-@@ -2266,8 +2266,11 @@ public final class Bukkit {
+@@ -2202,8 +2202,11 @@ public final class Bukkit {
       * @param tClass of the registry to get
       * @param <T> type of the registry
       * @return the corresponding registry or null if not present
@@ -363,7 +484,7 @@ index ac9b690fcccb60b587e5345f12f1383afd0a73a1..883197e6bd72f9481a35afac6ba11129
          return server.getRegistry(tClass);
      }
 diff --git a/src/main/java/org/bukkit/Registry.java b/src/main/java/org/bukkit/Registry.java
-index 0a3a41ae4c488b148266129d3663be3f8830d509..2374e1dd7049c6d32296e6da87051f1bdebd7031 100644
+index ff1fcdaccbca81602278a0b52670f7b895ba22b7..e78f57104211ce5faec75d2be0ec478809b25670 100644
 --- a/src/main/java/org/bukkit/Registry.java
 +++ b/src/main/java/org/bukkit/Registry.java
 @@ -135,14 +135,16 @@ public interface Registry<T extends Keyed> extends Iterable<T> {
@@ -385,25 +506,11 @@ index 0a3a41ae4c488b148266129d3663be3f8830d509..2374e1dd7049c6d32296e6da87051f1b
      /**
       * Sound keys.
       *
-@@ -215,11 +217,10 @@ public interface Registry<T extends Keyed> extends Iterable<T> {
-     /**
-      * Configured structures.
-      * @see io.papermc.paper.world.structure.ConfiguredStructure
--     * @deprecated use {@link #STRUCTURE}
-+     * @deprecated use {@link io.papermc.paper.registry.RegistryAccess#getRegistry(io.papermc.paper.registry.RegistryKey)} with {@link io.papermc.paper.registry.RegistryKey#STRUCTURE}.
-      */
-     @Deprecated(forRemoval = true)
--    Registry<io.papermc.paper.world.structure.ConfiguredStructure> CONFIGURED_STRUCTURE = Bukkit.getRegistry(io.papermc.paper.world.structure.ConfiguredStructure.class);
--
-+    Registry<io.papermc.paper.world.structure.ConfiguredStructure> CONFIGURED_STRUCTURE = io.papermc.paper.registry.RegistryAccess.INSTANCE.getRegistry(io.papermc.paper.world.structure.ConfiguredStructure.class);
-     /**
-      * Potion effect types.
-      *
 diff --git a/src/main/java/org/bukkit/Server.java b/src/main/java/org/bukkit/Server.java
-index 2204336d8800311b65e894739ab1b27273e7c6f2..0587c28419a03ca7aec77c6f4bfc94601171fb6f 100644
+index 02b898d441c42771903d5839c3cde544b1a25778..206b2d14b16d29ce96ed0383a1e67288add2041c 100644
 --- a/src/main/java/org/bukkit/Server.java
 +++ b/src/main/java/org/bukkit/Server.java
-@@ -1931,8 +1931,11 @@ public interface Server extends PluginMessageRecipient, net.kyori.adventure.audi
+@@ -1871,8 +1871,11 @@ public interface Server extends PluginMessageRecipient, net.kyori.adventure.audi
       * @param tClass of the registry to get
       * @param <T> type of the registry
       * @return the corresponding registry or null if not present

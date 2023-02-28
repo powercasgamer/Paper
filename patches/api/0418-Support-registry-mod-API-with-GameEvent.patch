@@ -1,0 +1,276 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Jake Potrebic <jake.m.potrebic@gmail.com>
+Date: Sat, 25 Feb 2023 21:26:44 -0800
+Subject: [PATCH] Support registry mod API with GameEvent
+
+
+diff --git a/src/main/java/io/papermc/paper/registry/RegistryKey.java b/src/main/java/io/papermc/paper/registry/RegistryKey.java
+index d476c90f589985a88487635c7622d2aa60e6c42c..e0975b5152dd47afd14d2b0e1a9d1a9c279d45c4 100644
+--- a/src/main/java/io/papermc/paper/registry/RegistryKey.java
++++ b/src/main/java/io/papermc/paper/registry/RegistryKey.java
+@@ -18,6 +18,7 @@ public final class RegistryKey<T extends Keyed> {
+     /* ******************* *
+      * Built-in registries *
+      * ******************* */
++    public static final RegistryKey<GameEvent> GAME_EVENT = create("game_event", GameEvent.class);
+     public static final RegistryKey<StructureType> STRUCTURE_TYPE = create("worldgen/structure_type", StructureType.class);
+ 
+     /* ********************** *
+diff --git a/src/main/java/org/bukkit/GameEvent.java b/src/main/java/org/bukkit/GameEvent.java
+index 4808824a55628d1e2344981d40d3665d572117e0..0017fbdb5a2ab027c7b372dfb4d5e52a5dc73063 100644
+--- a/src/main/java/org/bukkit/GameEvent.java
++++ b/src/main/java/org/bukkit/GameEvent.java
+@@ -1,5 +1,7 @@
+ package org.bukkit;
+ 
++import io.papermc.paper.registry.Reference; // Paper
++import io.papermc.paper.registry.RegistryKey;
+ import java.util.Collection;
+ import java.util.Collections;
+ import java.util.HashMap;
+@@ -10,93 +12,94 @@ import org.jetbrains.annotations.Nullable;
+ /**
+  * Represents a generic Mojang game event.
+  */
+-public final class GameEvent implements Keyed {
++@org.jetbrains.annotations.ApiStatus.NonExtendable // Paper
++@org.checkerframework.framework.qual.DefaultQualifier(NotNull.class) // Paper
++public abstract class GameEvent implements Keyed { // Paper
+ 
+-    private static final Map<NamespacedKey, GameEvent> GAME_EVENTS = new HashMap<>();
+     //
+-    public static final GameEvent BLOCK_ACTIVATE = getEvent("block_activate");
+-    public static final GameEvent BLOCK_ATTACH = getEvent("block_attach");
+-    public static final GameEvent BLOCK_CHANGE = getEvent("block_change");
+-    public static final GameEvent BLOCK_CLOSE = getEvent("block_close");
+-    public static final GameEvent BLOCK_DEACTIVATE = getEvent("block_deactivate");
+-    public static final GameEvent BLOCK_DESTROY = getEvent("block_destroy");
+-    public static final GameEvent BLOCK_DETACH = getEvent("block_detach");
+-    public static final GameEvent BLOCK_OPEN = getEvent("block_open");
+-    public static final GameEvent BLOCK_PLACE = getEvent("block_place");
++    public static final Reference<GameEvent> BLOCK_ACTIVATE = getEvent("block_activate");
++    public static final Reference<GameEvent> BLOCK_ATTACH = getEvent("block_attach");
++    public static final Reference<GameEvent> BLOCK_CHANGE = getEvent("block_change");
++    public static final Reference<GameEvent> BLOCK_CLOSE = getEvent("block_close");
++    public static final Reference<GameEvent> BLOCK_DEACTIVATE = getEvent("block_deactivate");
++    public static final Reference<GameEvent> BLOCK_DESTROY = getEvent("block_destroy");
++    public static final Reference<GameEvent> BLOCK_DETACH = getEvent("block_detach");
++    public static final Reference<GameEvent> BLOCK_OPEN = getEvent("block_open");
++    public static final Reference<GameEvent> BLOCK_PLACE = getEvent("block_place");
+     @Deprecated
+-    public static final GameEvent BLOCK_PRESS = getEvent("block_activate");
++    public static final Reference<GameEvent> BLOCK_PRESS = getEvent("block_activate");
+     @Deprecated
+-    public static final GameEvent BLOCK_SWITCH = getEvent("block_activate");
++    public static final Reference<GameEvent> BLOCK_SWITCH = getEvent("block_activate");
+     @Deprecated
+-    public static final GameEvent BLOCK_UNPRESS = getEvent("block_deactivate");
++    public static final Reference<GameEvent> BLOCK_UNPRESS = getEvent("block_deactivate");
+     @Deprecated
+-    public static final GameEvent BLOCK_UNSWITCH = getEvent("block_deactivate");
+-    public static final GameEvent CONTAINER_CLOSE = getEvent("container_close");
+-    public static final GameEvent CONTAINER_OPEN = getEvent("container_open");
+-    public static final GameEvent DISPENSE_FAIL = getEvent("dispense_fail");
+-    public static final GameEvent DRINK = getEvent("drink");
++    public static final Reference<GameEvent> BLOCK_UNSWITCH = getEvent("block_deactivate");
++    public static final Reference<GameEvent> CONTAINER_CLOSE = getEvent("container_close");
++    public static final Reference<GameEvent> CONTAINER_OPEN = getEvent("container_open");
++    public static final Reference<GameEvent> DISPENSE_FAIL = getEvent("dispense_fail");
++    public static final Reference<GameEvent> DRINK = getEvent("drink");
+     @Deprecated
+-    public static final GameEvent DRINKING_FINISH = getEvent("drink");
+-    public static final GameEvent EAT = getEvent("eat");
++    public static final Reference<GameEvent> DRINKING_FINISH = getEvent("drink");
++    public static final Reference<GameEvent> EAT = getEvent("eat");
+     @Deprecated
+-    public static final GameEvent ELYTRA_FREE_FALL = getEvent("elytra_glide");
+-    public static final GameEvent ELYTRA_GLIDE = getEvent("elytra_glide");
+-    public static final GameEvent ENTITY_DAMAGE = getEvent("entity_damage");
++    public static final Reference<GameEvent> ELYTRA_FREE_FALL = getEvent("elytra_glide");
++    public static final Reference<GameEvent> ELYTRA_GLIDE = getEvent("elytra_glide");
++    public static final Reference<GameEvent> ENTITY_DAMAGE = getEvent("entity_damage");
+     @Deprecated
+-    public static final GameEvent ENTITY_DAMAGED = getEvent("entity_damage");
+-    public static final GameEvent ENTITY_DIE = getEvent("entity_die");
++    public static final Reference<GameEvent> ENTITY_DAMAGED = getEvent("entity_damage");
++    public static final Reference<GameEvent> ENTITY_DIE = getEvent("entity_die");
+     @Deprecated
+-    public static final GameEvent ENTITY_DYING = getEvent("entity_die");
+-    public static final GameEvent ENTITY_INTERACT = getEvent("entity_interact");
++    public static final Reference<GameEvent> ENTITY_DYING = getEvent("entity_die");
++    public static final Reference<GameEvent> ENTITY_INTERACT = getEvent("entity_interact");
+     @Deprecated
+-    public static final GameEvent ENTITY_KILLED = getEvent("entity_die");
+-    public static final GameEvent ENTITY_PLACE = getEvent("entity_place");
+-    public static final GameEvent ENTITY_ROAR = getEvent("entity_roar");
+-    public static final GameEvent ENTITY_SHAKE = getEvent("entity_shake");
+-    public static final GameEvent EQUIP = getEvent("equip");
+-    public static final GameEvent EXPLODE = getEvent("explode");
+-    public static final GameEvent FLAP = getEvent("flap");
+-    public static final GameEvent FLUID_PICKUP = getEvent("fluid_pickup");
+-    public static final GameEvent FLUID_PLACE = getEvent("fluid_place");
+-    public static final GameEvent HIT_GROUND = getEvent("hit_ground");
+-    public static final GameEvent INSTRUMENT_PLAY = getEvent("instrument_play");
+-    public static final GameEvent ITEM_INTERACT_FINISH = getEvent("item_interact_finish");
+-    public static final GameEvent ITEM_INTERACT_START = getEvent("item_interact_start");
+-    public static final GameEvent JUKEBOX_PLAY = getEvent("jukebox_play");
+-    public static final GameEvent JUKEBOX_STOP_PLAY = getEvent("jukebox_stop_play");
+-    public static final GameEvent LIGHTNING_STRIKE = getEvent("lightning_strike");
++    public static final Reference<GameEvent> ENTITY_KILLED = getEvent("entity_die");
++    public static final Reference<GameEvent> ENTITY_PLACE = getEvent("entity_place");
++    public static final Reference<GameEvent> ENTITY_ROAR = getEvent("entity_roar");
++    public static final Reference<GameEvent> ENTITY_SHAKE = getEvent("entity_shake");
++    public static final Reference<GameEvent> EQUIP = getEvent("equip");
++    public static final Reference<GameEvent> EXPLODE = getEvent("explode");
++    public static final Reference<GameEvent> FLAP = getEvent("flap");
++    public static final Reference<GameEvent> FLUID_PICKUP = getEvent("fluid_pickup");
++    public static final Reference<GameEvent> FLUID_PLACE = getEvent("fluid_place");
++    public static final Reference<GameEvent> HIT_GROUND = getEvent("hit_ground");
++    public static final Reference<GameEvent> INSTRUMENT_PLAY = getEvent("instrument_play");
++    public static final Reference<GameEvent> ITEM_INTERACT_FINISH = getEvent("item_interact_finish");
++    public static final Reference<GameEvent> ITEM_INTERACT_START = getEvent("item_interact_start");
++    public static final Reference<GameEvent> JUKEBOX_PLAY = getEvent("jukebox_play");
++    public static final Reference<GameEvent> JUKEBOX_STOP_PLAY = getEvent("jukebox_stop_play");
++    public static final Reference<GameEvent> LIGHTNING_STRIKE = getEvent("lightning_strike");
+     @Deprecated
+-    public static final GameEvent MOB_INTERACT = getEvent("entity_interact");
+-    public static final GameEvent NOTE_BLOCK_PLAY = getEvent("note_block_play");
+-    public static final GameEvent PISTON_CONTRACT = getEvent("piston_contract");
+-    public static final GameEvent PISTON_EXTEND = getEvent("piston_extend");
+-    public static final GameEvent PRIME_FUSE = getEvent("prime_fuse");
+-    public static final GameEvent PROJECTILE_LAND = getEvent("projectile_land");
+-    public static final GameEvent PROJECTILE_SHOOT = getEvent("projectile_shoot");
++    public static final Reference<GameEvent> MOB_INTERACT = getEvent("entity_interact");
++    public static final Reference<GameEvent> NOTE_BLOCK_PLAY = getEvent("note_block_play");
++    public static final Reference<GameEvent> PISTON_CONTRACT = getEvent("piston_contract");
++    public static final Reference<GameEvent> PISTON_EXTEND = getEvent("piston_extend");
++    public static final Reference<GameEvent> PRIME_FUSE = getEvent("prime_fuse");
++    public static final Reference<GameEvent> PROJECTILE_LAND = getEvent("projectile_land");
++    public static final Reference<GameEvent> PROJECTILE_SHOOT = getEvent("projectile_shoot");
+     @Deprecated
+-    public static final GameEvent RAVAGER_ROAR = getEvent("entity_roar");
++    public static final Reference<GameEvent> RAVAGER_ROAR = getEvent("entity_roar");
+     @Deprecated
+-    public static final GameEvent RING_BELL = getEvent("block_change");
+-    public static final GameEvent SCULK_SENSOR_TENDRILS_CLICKING = getEvent("sculk_sensor_tendrils_clicking");
+-    public static final GameEvent SHEAR = getEvent("shear");
+-    public static final GameEvent SHRIEK = getEvent("shriek");
++    public static final Reference<GameEvent> RING_BELL = getEvent("block_change");
++    public static final Reference<GameEvent> SCULK_SENSOR_TENDRILS_CLICKING = getEvent("sculk_sensor_tendrils_clicking");
++    public static final Reference<GameEvent> SHEAR = getEvent("shear");
++    public static final Reference<GameEvent> SHRIEK = getEvent("shriek");
+     @Deprecated
+-    public static final GameEvent SHULKER_CLOSE = getEvent("container_close");
++    public static final Reference<GameEvent> SHULKER_CLOSE = getEvent("container_close");
+     @Deprecated
+-    public static final GameEvent SHULKER_OPEN = getEvent("container_open");
+-    public static final GameEvent SPLASH = getEvent("splash");
+-    public static final GameEvent STEP = getEvent("step");
+-    public static final GameEvent SWIM = getEvent("swim");
+-    public static final GameEvent TELEPORT = getEvent("teleport");
++    public static final Reference<GameEvent> SHULKER_OPEN = getEvent("container_open");
++    public static final Reference<GameEvent> SPLASH = getEvent("splash");
++    public static final Reference<GameEvent> STEP = getEvent("step");
++    public static final Reference<GameEvent> SWIM = getEvent("swim");
++    public static final Reference<GameEvent> TELEPORT = getEvent("teleport");
+     @Deprecated
+-    public static final GameEvent WOLF_SHAKING = getEvent("entity_shake");
++    public static final Reference<GameEvent> WOLF_SHAKING = getEvent("entity_shake");
+     //
+     private final NamespacedKey key;
+ 
+-    private GameEvent(NamespacedKey key) {
++    @org.jetbrains.annotations.ApiStatus.Internal // Paper
++    protected GameEvent(NamespacedKey key) { // Paper
+         this.key = key;
+ 
+-        GAME_EVENTS.put(key, this);
+     }
+ 
+     @NotNull
+@@ -110,10 +113,12 @@ public final class GameEvent implements Keyed {
+      *
+      * @param namespacedKey the key
+      * @return the event or null
++     * @deprecated use {@link Registry#GAME_EVENT}
+      */
+     @Nullable
++    @Deprecated // Paper
+     public static GameEvent getByKey(@NotNull NamespacedKey namespacedKey) {
+-        return GAME_EVENTS.get(namespacedKey);
++        return org.bukkit.Registry.GAME_EVENT.get(namespacedKey); // Paper
+     }
+ 
+     /**
+@@ -123,10 +128,42 @@ public final class GameEvent implements Keyed {
+      */
+     @NotNull
+     public static Collection<GameEvent> values() {
+-        return Collections.unmodifiableCollection(GAME_EVENTS.values());
++        return Collections.unmodifiableCollection(com.google.common.collect.Lists.newArrayList(Registry.GAME_EVENT));
+     }
+ 
+-    private static GameEvent getEvent(String vanilla) {
+-        return new GameEvent(NamespacedKey.minecraft(vanilla));
++    private static Reference<GameEvent> getEvent(String vanilla) { // Paper
++        return Reference.create(RegistryKey.GAME_EVENT, NamespacedKey.minecraft(vanilla)); // Paper
+     }
++    // Paper start
++    /**
++     * Gets the range of the event which is used to
++     * notify listeners of the event.
++     *
++     * @return the range
++     */
++    public abstract int getRange();
++
++    @org.jetbrains.annotations.ApiStatus.Experimental
++    @org.jetbrains.annotations.ApiStatus.NonExtendable
++    public interface Builder extends io.papermc.paper.registry.RegistryBuilder<GameEvent> {
++
++        /**
++         * Gets the range of the event which is used to
++         * notify listeners of the event.
++         *
++         * @return the range
++         */
++        int range();
++
++        /**
++         * Sets the range of the event which is used to
++         * notify listeners of the event.
++         *
++         * @param range the range
++         * @return the builder
++         */
++        @org.jetbrains.annotations.Contract("_ -> this")
++        @NotNull Builder range(int range);
++    }
++    // Paper end
+ }
+diff --git a/src/main/java/org/bukkit/Registry.java b/src/main/java/org/bukkit/Registry.java
+index dfacf70191c1b858a1ca166aba2d7d24395b1bfc..153b208e2015ce54f483664add0291ddbd4420c2 100644
+--- a/src/main/java/org/bukkit/Registry.java
++++ b/src/main/java/org/bukkit/Registry.java
+@@ -199,20 +199,7 @@ public interface Registry<T extends Keyed> extends Iterable<T> {
+      *
+      * @see GameEvent
+      */
+-    Registry<GameEvent> GAME_EVENT = new Registry<GameEvent>() {
+-
+-        @NotNull
+-        @Override
+-        public Iterator iterator() {
+-            return GameEvent.values().iterator();
+-        }
+-
+-        @Nullable
+-        @Override
+-        public GameEvent get(@NotNull NamespacedKey key) {
+-            return GameEvent.getByKey(key);
+-        }
+-    };
++    Registry<GameEvent> GAME_EVENT = io.papermc.paper.registry.RegistryAccess.INSTANCE.getRegistry(io.papermc.paper.registry.RegistryKey.GAME_EVENT); // Paper
+     // Paper start
+     /**
+      * Configured structures.
