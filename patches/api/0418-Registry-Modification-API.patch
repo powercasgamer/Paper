@@ -29,7 +29,7 @@ index adbfa20e69b093af125f1aef7d138d9cb0fbeb3a..15dfdc10b5c8759112692602fe51970d
  }
 diff --git a/src/main/java/io/papermc/paper/registry/RegistryAccess.java b/src/main/java/io/papermc/paper/registry/RegistryAccess.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..9446fb927b80a661ac48b0a45d22d32ba38d3447
+index 0000000000000000000000000000000000000000..224d200adbec9c5fb888aad5182e70e90b00d3d6
 --- /dev/null
 +++ b/src/main/java/io/papermc/paper/registry/RegistryAccess.java
 @@ -0,0 +1,40 @@
@@ -57,7 +57,7 @@ index 0000000000000000000000000000000000000000..9446fb927b80a661ac48b0a45d22d32b
 +     * @param type the type
 +     * @return the registry or null if none found
 +     * @param <T> the type
-+     * @deprecated use {@link #getRegistry(RegistryKey2)}
++     * @deprecated use {@link #getRegistry(RegistryKey)}
 +     */
 +    @Deprecated
 +    <T extends Keyed> @Nullable Registry<T> getRegistry(@NotNull Class<T> type);
@@ -71,7 +71,7 @@ index 0000000000000000000000000000000000000000..9446fb927b80a661ac48b0a45d22d32b
 +     * @throws java.util.NoSuchElementException if no registry with the key is found
 +     * @throws IllegalArgumentException if the registry is not available yet
 +     */
-+    <T extends Keyed> @NotNull Registry<T> getRegistry(@NotNull RegistryKey2<T> registryKey);
++    <T extends Keyed> @NotNull Registry<T> getRegistry(@NotNull RegistryKey<T> registryKey);
 +}
 diff --git a/src/main/java/io/papermc/paper/registry/RegistryBuilder.java b/src/main/java/io/papermc/paper/registry/RegistryBuilder.java
 new file mode 100644
@@ -92,11 +92,11 @@ index 0000000000000000000000000000000000000000..14e901c6731f1a2f9b36127d9d0f1c7c
 +public interface RegistryBuilder<T extends net.kyori.adventure.key.Keyed> extends Keyed {
 +
 +}
-diff --git a/src/main/java/io/papermc/paper/registry/RegistryKey2.java b/src/main/java/io/papermc/paper/registry/RegistryKey2.java
+diff --git a/src/main/java/io/papermc/paper/registry/RegistryKey.java b/src/main/java/io/papermc/paper/registry/RegistryKey.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..8a0c0b27189436035004d8df2b24b6c5c747e20d
+index 0000000000000000000000000000000000000000..1b4bb4fe106bc020fb78ad1f8a2ea1b35e2ee4f1
 --- /dev/null
-+++ b/src/main/java/io/papermc/paper/registry/RegistryKey2.java
++++ b/src/main/java/io/papermc/paper/registry/RegistryKey.java
 @@ -0,0 +1,54 @@
 +package io.papermc.paper.registry;
 +
@@ -111,24 +111,24 @@ index 0000000000000000000000000000000000000000..8a0c0b27189436035004d8df2b24b6c5
 +import org.jetbrains.annotations.NotNull;
 +
 +@ApiStatus.Experimental
-+public final class RegistryKey2<T extends Keyed> { // TODO rename once the server class of the same name is removed (there's an open PR)
++public final class RegistryKey<T extends Keyed> {
 +
-+    static final Set<RegistryKey2<?>> REGISTRY_KEYS = Sets.newIdentityHashSet();
++    static final Set<RegistryKey<?>> REGISTRY_KEYS = Sets.newIdentityHashSet();
 +
 +    /***********************
 +     * Built-in registries *
 +     ***********************/
-+    public static final RegistryKey2<StructureType> STRUCTURE_TYPE = create("worldgen/structure_type", StructureType.class);
++    public static final RegistryKey<StructureType> STRUCTURE_TYPE = create("worldgen/structure_type", StructureType.class);
 +
 +    /**************************
 +     * Data-driven registries *
 +     **************************/
-+    public static final RegistryKey2<Structure> STRUCTURE = create("worldgen/structure", Structure.class);
++    public static final RegistryKey<Structure> STRUCTURE = create("worldgen/structure", Structure.class);
 +
 +    private final NamespacedKey key;
 +    private final Class<T> type;
 +
-+    private RegistryKey2(final NamespacedKey key, final Class<T> type) {
++    private RegistryKey(final NamespacedKey key, final Class<T> type) {
 +        this.key = key;
 +        this.type = type;
 +    }
@@ -146,15 +146,15 @@ index 0000000000000000000000000000000000000000..8a0c0b27189436035004d8df2b24b6c5
 +        return "RegistryKey[" + this.key + " / " + this.type.getSimpleName() + "]";
 +    }
 +
-+    private static <T extends Keyed> RegistryKey2<T> create(final String key, final Class<T> type) {
-+        final RegistryKey2<T> registryKey = new RegistryKey2<>(NamespacedKey.minecraft(key), type);
++    static <T extends Keyed> RegistryKey<T> create(final String key, final Class<T> type) {
++        final RegistryKey<T> registryKey = new RegistryKey<>(NamespacedKey.minecraft(key), type);
 +        REGISTRY_KEYS.add(registryKey);
 +        return registryKey;
 +    }
 +}
 diff --git a/src/main/java/io/papermc/paper/registry/RegistryManager.java b/src/main/java/io/papermc/paper/registry/RegistryManager.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..3fb68a42ffc8cb2ddbacb73298d0270ee49b8153
+index 0000000000000000000000000000000000000000..ef761ff08bd0e7037548145bea26e7df5e777a7e
 --- /dev/null
 +++ b/src/main/java/io/papermc/paper/registry/RegistryManager.java
 @@ -0,0 +1,19 @@
@@ -173,9 +173,9 @@ index 0000000000000000000000000000000000000000..3fb68a42ffc8cb2ddbacb73298d0270e
 +@ApiStatus.Experimental
 +public interface RegistryManager {
 +
-+    <T extends Keyed, B extends RegistryBuilder<T>> void registerAdditionListener(@NotNull RegistryKey2<T> registryKey, @NotNull RegistryAdditionListener<T, B> listener);
++    <T extends Keyed, B extends RegistryBuilder<T>> void registerAdditionListener(@NotNull RegistryKey<T> registryKey, @NotNull RegistryAdditionListener<T, B> listener);
 +
-+    <T extends Keyed, B extends RegistryBuilder<T>> void registerPreFreezeListener(@NotNull RegistryKey2<T> registryKey, @NotNull RegistryPreFreezeListener<T, B> listener);
++    <T extends Keyed, B extends RegistryBuilder<T>> void registerPreFreezeListener(@NotNull RegistryKey<T> registryKey, @NotNull RegistryPreFreezeListener<T, B> listener);
 +}
 diff --git a/src/main/java/io/papermc/paper/registry/RegistryView.java b/src/main/java/io/papermc/paper/registry/RegistryView.java
 new file mode 100644
@@ -246,14 +246,14 @@ index 0000000000000000000000000000000000000000..e60dc63e3dd1aaa9a37def0d80f48ce9
 +}
 diff --git a/src/main/java/io/papermc/paper/registry/event/RegistryEvent.java b/src/main/java/io/papermc/paper/registry/event/RegistryEvent.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..cf7accaa9091babc0eeb583becf3c05b67df98be
+index 0000000000000000000000000000000000000000..596a1f180cdf52039ca71a6af8972f25cd9ee108
 --- /dev/null
 +++ b/src/main/java/io/papermc/paper/registry/event/RegistryEvent.java
 @@ -0,0 +1,21 @@
 +package io.papermc.paper.registry.event;
 +
 +import io.papermc.paper.registry.RegistryBuilder;
-+import io.papermc.paper.registry.RegistryKey2;
++import io.papermc.paper.registry.RegistryKey;
 +import io.papermc.paper.registry.RegistryView;
 +import net.kyori.adventure.key.Keyed;
 +import org.jetbrains.annotations.ApiStatus;
@@ -263,7 +263,7 @@ index 0000000000000000000000000000000000000000..cf7accaa9091babc0eeb583becf3c05b
 +@ApiStatus.NonExtendable
 +public interface RegistryEvent<T extends Keyed, B extends RegistryBuilder<T>> {
 +
-+    @NotNull RegistryKey2<T> registryKey();
++    @NotNull RegistryKey<T> registryKey();
 +
 +    @NotNull RegistryView<T> registryView();
 +
@@ -347,15 +347,15 @@ index 0000000000000000000000000000000000000000..cbefe6d5eb18e9f554c85160b234a989
 +    void beforeFreeze(@NotNull RegistryPreFreezeEvent<T, B> event);
 +}
 diff --git a/src/main/java/org/bukkit/Bukkit.java b/src/main/java/org/bukkit/Bukkit.java
-index ac9b690fcccb60b587e5345f12f1383afd0a73a1..b6de417e494ba0ec7928864a8083c2b365633cab 100644
+index ac9b690fcccb60b587e5345f12f1383afd0a73a1..883197e6bd72f9481a35afac6ba11129efba94ee 100644
 --- a/src/main/java/org/bukkit/Bukkit.java
 +++ b/src/main/java/org/bukkit/Bukkit.java
 @@ -2266,8 +2266,11 @@ public final class Bukkit {
       * @param tClass of the registry to get
       * @param <T> type of the registry
       * @return the corresponding registry or null if not present
-+     * @deprecated use {@link io.papermc.paper.registry.RegistryAccess#getRegistry(io.papermc.paper.registry.RegistryKey2)} with
-+     * keys from {@link io.papermc.paper.registry.RegistryKey2}.
++     * @deprecated use {@link io.papermc.paper.registry.RegistryAccess#getRegistry(io.papermc.paper.registry.RegistryKey)} with
++     * keys from {@link io.papermc.paper.registry.RegistryKey}.
       */
      @Nullable
 +    @Deprecated // Paper
@@ -363,14 +363,14 @@ index ac9b690fcccb60b587e5345f12f1383afd0a73a1..b6de417e494ba0ec7928864a8083c2b3
          return server.getRegistry(tClass);
      }
 diff --git a/src/main/java/org/bukkit/Registry.java b/src/main/java/org/bukkit/Registry.java
-index 3dc747080b7bfea4b04b5a47cc7ae4698c758802..10b0655254af8e7e7d79ebce4a146fe6468d27be 100644
+index 0a3a41ae4c488b148266129d3663be3f8830d509..278a643a80207a27f4dd011da8f6d3b675535914 100644
 --- a/src/main/java/org/bukkit/Registry.java
 +++ b/src/main/java/org/bukkit/Registry.java
 @@ -135,14 +135,16 @@ public interface Registry<T extends Keyed> extends Iterable<T> {
       * Server structures.
       *
       * @see Structure
-+     * @deprecated use {@link io.papermc.paper.registry.RegistryAccess#getRegistry(io.papermc.paper.registry.RegistryKey2)} with {@link io.papermc.paper.registry.RegistryKey2#STRUCTURE}.
++     * @deprecated use {@link io.papermc.paper.registry.RegistryAccess#getRegistry(io.papermc.paper.registry.RegistryKey)} with {@link io.papermc.paper.registry.RegistryKey#STRUCTURE}.
       */
 -    Registry<Structure> STRUCTURE = Bukkit.getRegistry(Structure.class);
 +    @Deprecated // Paper
@@ -381,29 +381,30 @@ index 3dc747080b7bfea4b04b5a47cc7ae4698c758802..10b0655254af8e7e7d79ebce4a146fe6
       * @see StructureType
       */
 -    Registry<StructureType> STRUCTURE_TYPE = Bukkit.getRegistry(StructureType.class);
-+    Registry<StructureType> STRUCTURE_TYPE = io.papermc.paper.registry.RegistryAccess.INSTANCE.getRegistry(io.papermc.paper.registry.RegistryKey2.STRUCTURE_TYPE); // Paper
++    Registry<StructureType> STRUCTURE_TYPE = io.papermc.paper.registry.RegistryAccess.INSTANCE.getRegistry(io.papermc.paper.registry.RegistryKey.STRUCTURE_TYPE); // Paper
      /**
       * Sound keys.
       *
-@@ -216,7 +218,7 @@ public interface Registry<T extends Keyed> extends Iterable<T> {
-      * Configured structures.
-      * @see io.papermc.paper.world.structure.ConfiguredStructure
+@@ -218,8 +220,7 @@ public interface Registry<T extends Keyed> extends Iterable<T> {
+      * @deprecated use {@link #STRUCTURE}
       */
+     @Deprecated(forRemoval = true)
 -    Registry<io.papermc.paper.world.structure.ConfiguredStructure> CONFIGURED_STRUCTURE = Bukkit.getRegistry(io.papermc.paper.world.structure.ConfiguredStructure.class);
-+    Registry<io.papermc.paper.world.structure.ConfiguredStructure> CONFIGURED_STRUCTURE = io.papermc.paper.registry.RegistryAccess.INSTANCE.getRegistry(io.papermc.paper.world.structure.ConfiguredStructure.class); // Paper
+-
++    Registry<io.papermc.paper.world.structure.ConfiguredStructure> CONFIGURED_STRUCTURE = io.papermc.paper.registry.RegistryAccess.INSTANCE.getRegistry(io.papermc.paper.world.structure.ConfiguredStructure.class);
      /**
       * Potion effect types.
       *
 diff --git a/src/main/java/org/bukkit/Server.java b/src/main/java/org/bukkit/Server.java
-index 2204336d8800311b65e894739ab1b27273e7c6f2..f688305748c7dbb810ad41e5e93a4a421b411beb 100644
+index 2204336d8800311b65e894739ab1b27273e7c6f2..0587c28419a03ca7aec77c6f4bfc94601171fb6f 100644
 --- a/src/main/java/org/bukkit/Server.java
 +++ b/src/main/java/org/bukkit/Server.java
 @@ -1931,8 +1931,11 @@ public interface Server extends PluginMessageRecipient, net.kyori.adventure.audi
       * @param tClass of the registry to get
       * @param <T> type of the registry
       * @return the corresponding registry or null if not present
-+     * @deprecated use {@link io.papermc.paper.registry.RegistryAccess#getRegistry(io.papermc.paper.registry.RegistryKey2)} with
-+     * keys from {@link io.papermc.paper.registry.RegistryKey2}.
++     * @deprecated use {@link io.papermc.paper.registry.RegistryAccess#getRegistry(io.papermc.paper.registry.RegistryKey)} with
++     * keys from {@link io.papermc.paper.registry.RegistryKey}.
       */
      @Nullable
 +    @Deprecated // Paper
@@ -412,7 +413,7 @@ index 2204336d8800311b65e894739ab1b27273e7c6f2..f688305748c7dbb810ad41e5e93a4a42
      /**
 diff --git a/src/test/java/io/papermc/paper/registry/TestRegistryAccess.java b/src/test/java/io/papermc/paper/registry/TestRegistryAccess.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..7d39e1974bf3df903d3224f639658863eaa9310e
+index 0000000000000000000000000000000000000000..11174aa8703753d6a4eb95d849ed37280ced56e5
 --- /dev/null
 +++ b/src/test/java/io/papermc/paper/registry/TestRegistryAccess.java
 @@ -0,0 +1,20 @@
@@ -432,7 +433,7 @@ index 0000000000000000000000000000000000000000..7d39e1974bf3df903d3224f639658863
 +    }
 +
 +    @Override
-+    public @NotNull <T extends Keyed> Registry<T> getRegistry(@NotNull RegistryKey2<T> registryKey) {
++    public @NotNull <T extends Keyed> Registry<T> getRegistry(@NotNull RegistryKey<T> registryKey) {
 +        return (Registry<T>) new EmptyRegistry();
 +    }
 +}

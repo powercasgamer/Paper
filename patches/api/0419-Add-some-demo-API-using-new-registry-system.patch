@@ -31,10 +31,10 @@ index 0000000000000000000000000000000000000000..574dbfc883f503d76c2bdf61a8730483
 +    }
 +
 +}
-diff --git a/src/main/java/io/papermc/paper/registry/RegistryKey2.java b/src/main/java/io/papermc/paper/registry/RegistryKey2.java
-index 8a0c0b27189436035004d8df2b24b6c5c747e20d..6835ec96666614583d88f813f2dc095d70935f05 100644
---- a/src/main/java/io/papermc/paper/registry/RegistryKey2.java
-+++ b/src/main/java/io/papermc/paper/registry/RegistryKey2.java
+diff --git a/src/main/java/io/papermc/paper/registry/RegistryKey.java b/src/main/java/io/papermc/paper/registry/RegistryKey.java
+index 1b4bb4fe106bc020fb78ad1f8a2ea1b35e2ee4f1..3e2232be284d01ed919d595d31172a650a5f4f44 100644
+--- a/src/main/java/io/papermc/paper/registry/RegistryKey.java
++++ b/src/main/java/io/papermc/paper/registry/RegistryKey.java
 @@ -1,6 +1,7 @@
  package io.papermc.paper.registry;
  
@@ -43,18 +43,18 @@ index 8a0c0b27189436035004d8df2b24b6c5c747e20d..6835ec96666614583d88f813f2dc095d
  import java.util.Set;
  import net.kyori.adventure.key.Keyed;
  import org.bukkit.GameEvent;
-@@ -18,11 +19,13 @@ public final class RegistryKey2<T extends Keyed> { // TODO rename once the serve
+@@ -18,11 +19,13 @@ public final class RegistryKey<T extends Keyed> {
      /***********************
       * Built-in registries *
       ***********************/
-+    public static final RegistryKey2<GameEvent> GAME_EVENT = create("game_event", GameEvent.class);
-     public static final RegistryKey2<StructureType> STRUCTURE_TYPE = create("worldgen/structure_type", StructureType.class);
++    public static final RegistryKey<GameEvent> GAME_EVENT = create("game_event", GameEvent.class);
+     public static final RegistryKey<StructureType> STRUCTURE_TYPE = create("worldgen/structure_type", StructureType.class);
  
      /**************************
       * Data-driven registries *
       **************************/
-+    public static final RegistryKey2<ChatType> CHAT_TYPE = create("chat_type", ChatType.class);
-     public static final RegistryKey2<Structure> STRUCTURE = create("worldgen/structure", Structure.class);
++    public static final RegistryKey<ChatType> CHAT_TYPE = create("chat_type", ChatType.class);
+     public static final RegistryKey<Structure> STRUCTURE = create("worldgen/structure", Structure.class);
  
      private final NamespacedKey key;
 diff --git a/src/main/java/org/bukkit/GameEvent.java b/src/main/java/org/bukkit/GameEvent.java
@@ -96,7 +96,7 @@ index 4808824a55628d1e2344981d40d3665d572117e0..6ecd162c6f797be124ff1ce5af16d990
 +    // Paper end
  }
 diff --git a/src/main/java/org/bukkit/Registry.java b/src/main/java/org/bukkit/Registry.java
-index 10b0655254af8e7e7d79ebce4a146fe6468d27be..cc1cdb7340d9b83c5bab299321fd8f3699b0b3e3 100644
+index 278a643a80207a27f4dd011da8f6d3b675535914..088ffe1923d768181581bb5678573e78af75f6d7 100644
 --- a/src/main/java/org/bukkit/Registry.java
 +++ b/src/main/java/org/bukkit/Registry.java
 @@ -199,20 +199,7 @@ public interface Registry<T extends Keyed> extends Iterable<T> {
@@ -117,7 +117,7 @@ index 10b0655254af8e7e7d79ebce4a146fe6468d27be..cc1cdb7340d9b83c5bab299321fd8f36
 -            return GameEvent.getByKey(key);
 -        }
 -    };
-+    Registry<GameEvent> GAME_EVENT = io.papermc.paper.registry.RegistryAccess.INSTANCE.getRegistry(io.papermc.paper.registry.RegistryKey2.GAME_EVENT); // Paper
++    Registry<GameEvent> GAME_EVENT = io.papermc.paper.registry.RegistryAccess.INSTANCE.getRegistry(io.papermc.paper.registry.RegistryKey.GAME_EVENT); // Paper
      // Paper start
      /**
       * Configured structures.

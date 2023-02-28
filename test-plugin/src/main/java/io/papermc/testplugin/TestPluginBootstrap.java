@@ -4,7 +4,7 @@ import io.papermc.paper.chat.ChatType;
 import io.papermc.paper.plugin.bootstrap.BootstrapContext;
 import io.papermc.paper.plugin.bootstrap.PluginBootstrap;
 import io.papermc.paper.registry.event.listener.RegistryAdditionListener;
-import io.papermc.paper.registry.RegistryKey2;
+import io.papermc.paper.registry.RegistryKey;
 import io.papermc.paper.registry.RegistryManager;
 import io.papermc.paper.registry.event.RegistryPreFreezeEvent;
 import io.papermc.paper.registry.event.RegistryAdditionEvent;
@@ -25,10 +25,10 @@ public class TestPluginBootstrap implements PluginBootstrap {
     @Override
     public void bootstrap(@NotNull BootstrapContext context) {
         final RegistryManager manager = context.getRegistryManager();
-        manager.registerPreFreezeListener(RegistryKey2.GAME_EVENT, new Test());
-        manager.registerAdditionListener(RegistryKey2.GAME_EVENT, new Test2());
-        manager.registerPreFreezeListener(RegistryKey2.CHAT_TYPE, new AddChatType());
-        manager.registerAdditionListener(RegistryKey2.CHAT_TYPE, new ModifyChatType());
+        manager.registerPreFreezeListener(RegistryKey.GAME_EVENT, new Test());
+        manager.registerAdditionListener(RegistryKey.GAME_EVENT, new Test2());
+        manager.registerPreFreezeListener(RegistryKey.CHAT_TYPE, new AddChatType());
+        manager.registerAdditionListener(RegistryKey.CHAT_TYPE, new ModifyChatType());
     }
 
     private static final class Test implements RegistryPreFreezeListener<GameEvent, GameEvent.Builder> {
