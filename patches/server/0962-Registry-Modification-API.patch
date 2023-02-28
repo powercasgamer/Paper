@@ -111,20 +111,19 @@ index 0000000000000000000000000000000000000000..37ea7acf32872cfeb4f6c51d419bfe86
 +}
 diff --git a/src/main/java/io/papermc/paper/registry/PaperRegistryAccess.java b/src/main/java/io/papermc/paper/registry/PaperRegistryAccess.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..9d1f9d9c5268466f8e4ce00f3402888cb9602242
+index 0000000000000000000000000000000000000000..5b42c754b114547b226e8f0bfd86e09dfd441eb5
 --- /dev/null
 +++ b/src/main/java/io/papermc/paper/registry/PaperRegistryAccess.java
-@@ -0,0 +1,100 @@
+@@ -0,0 +1,96 @@
 +package io.papermc.paper.registry;
 +
 +import io.papermc.paper.registry.entry.RegistryEntry;
-+import io.papermc.paper.registry.legacy.DelayedRegistry;
 +import io.papermc.paper.registry.legacy.DelayedRegistryEntry;
 +import java.util.IdentityHashMap;
 +import java.util.Map;
++import java.util.Objects;
 +import java.util.function.BooleanSupplier;
 +import net.minecraft.server.MinecraftServer;
-+import net.minecraft.server.RegistryLayer;
 +import org.bukkit.Keyed;
 +import org.bukkit.Registry;
 +import org.checkerframework.checker.nullness.qual.Nullable;
@@ -137,42 +136,39 @@ index 0000000000000000000000000000000000000000..9d1f9d9c5268466f8e4ce00f3402888c
 +        return (PaperRegistryAccess) RegistryAccess.INSTANCE;
 +    }
 +
-+    @SuppressWarnings("unchecked")
 +    @Deprecated
 +    @Override
 +    public <T extends Keyed> @Nullable Registry<T> getRegistry(final Class<T> type) {
-+        final @Nullable RegistryKey2<T> rKey = byType(type);
-+        if (rKey == null) {
-+            return null;
-+        }
-+        if (this.registries.containsKey(rKey)) {
-+            return (Registry<T>) this.registries.get(rKey);
-+        } else {
-+            final @Nullable RegistryEntry<?, T> entry = (RegistryEntry<?, T>) PaperRegistries.BY_REGISTRY_KEY.get(rKey);
-+            if (!(entry instanceof DelayedRegistryEntry<?, ?>)) {
-+                return null;
-+            }
-+            return entry.createRegistry(null);
-+        }
++        return this.getRegistry0(byType(type), true);
 +    }
 +
-+    @SuppressWarnings("unchecked")
 +    @Override
 +    public <T extends Keyed> Registry<T> getRegistry(final RegistryKey2<T> key) {
++        return Objects.requireNonNull(this.getRegistry0(key, false), "This shouldn't happen");
++    }
++
++    @SuppressWarnings({"unchecked", "deprecation"})
++    private <T extends Keyed> @Nullable Registry<T> getRegistry0(final @Nullable RegistryKey2<T> key, final boolean fromLegacy) {
++        if (key == null) {
++            return null;
++        }
 +        final @Nullable RegistryEntry<?, T> entry = (RegistryEntry<?, T>) PaperRegistries.BY_REGISTRY_KEY.get(key);
 +        if (entry == null) {
-+            throw new IllegalArgumentException(key + " is not a recognized key");
++            if (!fromLegacy) throw new IllegalArgumentException(key + " is not a recognized key");
++            return null;
 +        }
-+        @Nullable Registry<T> registry = (Registry<T>) this.registries.get(key);
-+        if (registry == null) {
-+            if (entry instanceof RegistryEntry.BuiltIn<?,?> builtIn) { // provide built-ins as needed
-+                registry = (Registry<T>) builtIn.createRegistry();
-+                this.registries.put(entry.key(), registry);
-+                return registry;
-+            }
-+            throw new IllegalArgumentException("You cannot access this registry: " + key + " yet!");
++        final @Nullable Registry<T> registry = (Registry<T>) this.registries.get(key);
++        if (registry != null) {
++            return registry;
 +        }
-+        return registry;
++        if (entry instanceof RegistryEntry.BuiltIn<?,?> builtIn) { // provide built-ins as needed
++            return (Registry<T>) this.registries.computeIfAbsent(entry.key(), ignored -> builtIn.createRegistry());
++        } else if (entry instanceof DelayedRegistryEntry<?,?>) {
++            // delayed registry entries are only for static final fields in org.bukkit.Registry for data-driven registries
++            return entry.createRegistry(null);
++        }
++        if (!fromLegacy) throw new IllegalArgumentException("You cannot access this registry: " + key + " yet!");
++        return null;
 +    }
 +
 +    public <M, T extends Keyed, B extends PaperRegistryBuilder<M, T>> PaperWritableRegistry<M, T, B> getWritableRegistry(final RegistryKey2<T> key) {
