@@ -29,15 +29,17 @@ index adbfa20e69b093af125f1aef7d138d9cb0fbeb3a..15dfdc10b5c8759112692602fe51970d
  }
 diff --git a/src/main/java/io/papermc/paper/registry/Reference.java b/src/main/java/io/papermc/paper/registry/Reference.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..6b93ca09c46ed9f37ee8acd89526ff8dbea7bd61
+index 0000000000000000000000000000000000000000..393b24edcf7ed7e289f2c439860774fcd3fd64bd
 --- /dev/null
 +++ b/src/main/java/io/papermc/paper/registry/Reference.java
-@@ -0,0 +1,63 @@
+@@ -0,0 +1,71 @@
 +package io.papermc.paper.registry;
 +
++import net.kyori.adventure.key.Key;
 +import org.bukkit.Keyed;
 +import org.bukkit.NamespacedKey;
 +import org.bukkit.Registry;
++import org.jetbrains.annotations.ApiStatus;
 +import org.jetbrains.annotations.NotNull;
 +import org.jetbrains.annotations.Nullable;
 +
@@ -48,6 +50,7 @@ index 0000000000000000000000000000000000000000..6b93ca09c46ed9f37ee8acd89526ff8d
 + *
 + * @param <T> type of the value
 + */
++@ApiStatus.Experimental // since 1.19.4
 +public interface Reference<T extends Keyed> extends Keyed {
 +
 +    /**
@@ -72,6 +75,10 @@ index 0000000000000000000000000000000000000000..6b93ca09c46ed9f37ee8acd89526ff8d
 +     */
 +    boolean exists();
 +
++    @Override
++    @Deprecated(forRemoval = true)
++    @NotNull NamespacedKey getKey();
++
 +    /**
 +     * Creates a reference to a registered value.
 +     *
@@ -80,6 +87,7 @@ index 0000000000000000000000000000000000000000..6b93ca09c46ed9f37ee8acd89526ff8d
 +     * @param <T> the type of the value
 +     * @return a reference
 +     */
++    @Deprecated(forRemoval = true)
 +    static <T extends Keyed> @NotNull Reference<T> create(@NotNull Registry<T> registry, @NotNull NamespacedKey key) {
 +        return new ReferenceImpl<>(registry, key);
 +    }
@@ -92,20 +100,21 @@ index 0000000000000000000000000000000000000000..6b93ca09c46ed9f37ee8acd89526ff8d
 +     * @param <T> the type of the value
 +     * @return a reference
 +     */
-+    static <T extends Keyed> @NotNull Reference<T> create(@NotNull RegistryKey<T> registryKey, @NotNull NamespacedKey key) {
++    static <T extends Keyed> @NotNull Reference<T> create(@NotNull RegistryKey<T> registryKey, @NotNull Key key) {
 +        return new ReferenceImpl<>(registryKey, key);
 +    }
 +}
 diff --git a/src/main/java/io/papermc/paper/registry/ReferenceImpl.java b/src/main/java/io/papermc/paper/registry/ReferenceImpl.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..cf804db2f2f0d1d8a03ae9a4ef34c3bc81e3c3a9
+index 0000000000000000000000000000000000000000..4cf02f2b496a3c89b8d071a16147677b41eb5b28
 --- /dev/null
 +++ b/src/main/java/io/papermc/paper/registry/ReferenceImpl.java
-@@ -0,0 +1,46 @@
+@@ -0,0 +1,52 @@
 +package io.papermc.paper.registry;
 +
 +import com.google.common.base.Suppliers;
 +import java.util.function.Supplier;
++import net.kyori.adventure.key.Key;
 +import org.bukkit.Keyed;
 +import org.bukkit.NamespacedKey;
 +import org.bukkit.Registry;
@@ -114,13 +123,13 @@ index 0000000000000000000000000000000000000000..cf804db2f2f0d1d8a03ae9a4ef34c3bc
 +
 +import java.util.NoSuchElementException;
 +
-+record ReferenceImpl<T extends Keyed>(@NotNull Supplier<Registry<T>> registry, @NotNull NamespacedKey key) implements Reference<T> {
++record ReferenceImpl<T extends Keyed>(@NotNull Supplier<Registry<T>> registry, @NotNull Key key) implements Reference<T> {
 +
-+    ReferenceImpl(@NotNull Registry<T> registry, @NotNull NamespacedKey key) {
++    ReferenceImpl(@NotNull Registry<T> registry, @NotNull Key key) {
 +        this(() -> registry, key);
 +    }
 +
-+    ReferenceImpl(@NotNull RegistryKey<T> registryKey, @NotNull NamespacedKey key) {
++    ReferenceImpl(@NotNull RegistryKey<T> registryKey, @NotNull Key key) {
 +        this(Suppliers.memoize(() -> RegistryAccess.INSTANCE.getRegistry(registryKey)), key);
 +    }
 +
@@ -144,8 +153,13 @@ index 0000000000000000000000000000000000000000..cf804db2f2f0d1d8a03ae9a4ef34c3bc
 +    }
 +
 +    @Override
-+    public @NotNull NamespacedKey getKey() {
++    public @NotNull Key key() {
 +        return this.key;
++    }
++
++    @Override
++    public @NotNull NamespacedKey getKey() {
++        return this.key instanceof NamespacedKey nsKey ? nsKey : new NamespacedKey(this.key.namespace(), this.key.value());
 +    }
 +}
 diff --git a/src/main/java/io/papermc/paper/registry/RegistryAccess.java b/src/main/java/io/papermc/paper/registry/RegistryAccess.java
@@ -569,7 +583,7 @@ index ceb8d207843df5ddc852d44928286648a652eedb..607575264bfff93cfba6ee9fb771dfef
          return server.getRegistry(tClass);
      }
 diff --git a/src/main/java/org/bukkit/Registry.java b/src/main/java/org/bukkit/Registry.java
-index ff1fcdaccbca81602278a0b52670f7b895ba22b7..e78f57104211ce5faec75d2be0ec478809b25670 100644
+index ff1fcdaccbca81602278a0b52670f7b895ba22b7..825fcc8a15ac713a15b17f37b5913c9b09824290 100644
 --- a/src/main/java/org/bukkit/Registry.java
 +++ b/src/main/java/org/bukkit/Registry.java
 @@ -135,14 +135,16 @@ public interface Registry<T extends Keyed> extends Iterable<T> {
@@ -591,6 +605,24 @@ index ff1fcdaccbca81602278a0b52670f7b895ba22b7..e78f57104211ce5faec75d2be0ec4788
      /**
       * Sound keys.
       *
+@@ -220,6 +222,17 @@ public interface Registry<T extends Keyed> extends Iterable<T> {
+      */
+     @Nullable
+     T get(@NotNull NamespacedKey key);
++    // Paper start
++    /**
++     * Get the object by its key.
++     *
++     * @param key non-null key
++     * @return item or null if it does not exist
++     */
++    default @Nullable T get(@NotNull net.kyori.adventure.key.Key key) {
++        return key instanceof NamespacedKey nsKey ? this.get(nsKey) : this.get(new NamespacedKey(key.namespace(), key.value()));
++    }
++    // Paper end
+ 
+     /**
+      * Attempts to match the registered object with the given key.
 diff --git a/src/main/java/org/bukkit/Server.java b/src/main/java/org/bukkit/Server.java
 index 02b898d441c42771903d5839c3cde544b1a25778..206b2d14b16d29ce96ed0383a1e67288add2041c 100644
 --- a/src/main/java/org/bukkit/Server.java

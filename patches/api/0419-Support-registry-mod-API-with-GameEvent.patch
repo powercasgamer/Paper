@@ -17,7 +17,7 @@ index 38a68a5c5074b725e9d75d525b4a280c60f5fd2d..308d99d1fbfd6722edb5e6e49e0e468e
  
      /* ********************** *
 diff --git a/src/main/java/org/bukkit/GameEvent.java b/src/main/java/org/bukkit/GameEvent.java
-index a472a6b8d8e5525efcf13f3dcdb4871c9a7aa39b..c91ba0b3cb59d3a9d51aa66cb29f00baee54d83d 100644
+index a472a6b8d8e5525efcf13f3dcdb4871c9a7aa39b..8debae22f2868e3476fc21e2b3b42619801d952d 100644
 --- a/src/main/java/org/bukkit/GameEvent.java
 +++ b/src/main/java/org/bukkit/GameEvent.java
 @@ -1,5 +1,6 @@
@@ -216,7 +216,7 @@ index a472a6b8d8e5525efcf13f3dcdb4871c9a7aa39b..c91ba0b3cb59d3a9d51aa66cb29f00ba
 -    private static GameEvent getEvent(String vanilla) {
 -        return new GameEvent(NamespacedKey.minecraft(vanilla));
 +    private static Reference<GameEvent> getEvent(String vanilla) { // Paper
-+        return Reference.create(io.papermc.paper.registry.RegistryKey.GAME_EVENT, NamespacedKey.minecraft(vanilla)); // Paper
++        return Reference.create(io.papermc.paper.registry.RegistryKey.GAME_EVENT, net.kyori.adventure.key.Key.key(net.kyori.adventure.key.Key.MINECRAFT_NAMESPACE, vanilla)); // Paper
      }
 +    // Paper start
 +    /**
@@ -274,7 +274,7 @@ index a472a6b8d8e5525efcf13f3dcdb4871c9a7aa39b..c91ba0b3cb59d3a9d51aa66cb29f00ba
 +    // Paper end
  }
 diff --git a/src/main/java/org/bukkit/Registry.java b/src/main/java/org/bukkit/Registry.java
-index dfacf70191c1b858a1ca166aba2d7d24395b1bfc..153b208e2015ce54f483664add0291ddbd4420c2 100644
+index 4de6e40b95d35398a2fa28854e320e5819e78667..756a31c464edc2d6c3bc4d74f32a97e8dd1e15dd 100644
 --- a/src/main/java/org/bukkit/Registry.java
 +++ b/src/main/java/org/bukkit/Registry.java
 @@ -199,20 +199,7 @@ public interface Registry<T extends Keyed> extends Iterable<T> {
