@@ -1,0 +1,310 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Jake Potrebic <jake.m.potrebic@gmail.com>
+Date: Sat, 25 Feb 2023 21:25:08 -0800
+Subject: [PATCH] Support registry mod API with GameEvent
+
+
+diff --git a/src/main/java/io/papermc/paper/registry/PaperRegistries.java b/src/main/java/io/papermc/paper/registry/PaperRegistries.java
+index be562b04c626c2fe8c792f445cbdd73a0bb5327f..198acd382c3059e040fc3cc8fd3f8748ab0efed4 100644
+--- a/src/main/java/io/papermc/paper/registry/PaperRegistries.java
++++ b/src/main/java/io/papermc/paper/registry/PaperRegistries.java
+@@ -2,6 +2,7 @@ package io.papermc.paper.registry;
+ 
+ import com.google.common.collect.ImmutableList;
+ import io.papermc.paper.registry.entry.RegistryEntry;
++import io.papermc.paper.world.PaperGameEvent;
+ import io.papermc.paper.world.structure.ConfiguredStructure;
+ import io.papermc.paper.world.structure.PaperConfiguredStructure;
+ import java.util.IdentityHashMap;
+@@ -20,6 +21,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
+ 
+ import static io.papermc.paper.registry.entry.RegistryEntry.immutable;
+ import static io.papermc.paper.registry.entry.RegistryEntry.immutableBuiltIn;
++import static io.papermc.paper.registry.entry.RegistryEntry.writableBuiltIn;
+ 
+ public final class PaperRegistries {
+ 
+@@ -32,6 +34,7 @@ public final class PaperRegistries {
+     static {
+         REGISTRY_ENTRIES = ImmutableList.<RegistryEntry<?, ?>>builder()
+             // built-ins
++            .add(writableBuiltIn(RegistryKey.GAME_EVENT, Registries.GAME_EVENT, PaperGameEvent::new, io.papermc.paper.world.PaperGameEvent.Builder::new))
+             .add(immutableBuiltIn(RegistryKey.STRUCTURE_TYPE, Registries.STRUCTURE_TYPE, CraftStructureType::new))
+ 
+             // data-drivens
+diff --git a/src/main/java/io/papermc/paper/world/PaperGameEvent.java b/src/main/java/io/papermc/paper/world/PaperGameEvent.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..c9b68c9e1a856baf3b6232c6bb8e5f5efdad93cd
+--- /dev/null
++++ b/src/main/java/io/papermc/paper/world/PaperGameEvent.java
+@@ -0,0 +1,80 @@
++package io.papermc.paper.world;
++
++import com.google.common.base.Preconditions;
++import io.papermc.paper.registry.PaperRegistryBuilder;
++import org.bukkit.GameEvent;
++import org.bukkit.NamespacedKey;
++import org.checkerframework.checker.nullness.qual.NonNull;
++import org.checkerframework.checker.nullness.qual.Nullable;
++import org.checkerframework.framework.qual.DefaultQualifier;
++
++@DefaultQualifier(NonNull.class)
++public final class PaperGameEvent extends GameEvent {
++
++    private final net.minecraft.world.level.gameevent.GameEvent nms;
++
++    public PaperGameEvent(final NamespacedKey key, final net.minecraft.world.level.gameevent.GameEvent nms) {
++        super(key);
++        this.nms = nms;
++    }
++
++    @Override
++    public int getRange() {
++        return this.nms.getNotificationRadius();
++    }
++
++    @Override
++    public int getVibrationLevel() {
++        return this.nms.vibrationLevel;
++    }
++
++    public static final class Builder implements GameEvent.Builder, PaperRegistryBuilder<net.minecraft.world.level.gameevent.GameEvent, GameEvent> {
++
++        private final NamespacedKey key;
++        private int range = 16;
++        private int vibrationLevel = 0;
++
++        public Builder(NamespacedKey key, net.minecraft.world.level.gameevent.@Nullable GameEvent nms) {
++            this.key = key;
++            if (nms != null) {
++                this.range = nms.getNotificationRadius();
++                this.vibrationLevel = nms.vibrationLevel;
++            }
++        }
++
++        @Override
++        public NamespacedKey getKey() {
++            return this.key;
++        }
++
++        @Override
++        public int range() {
++            return this.range;
++        }
++
++        @Override
++        public Builder range(int range) {
++            this.range = range;
++            return this;
++        }
++
++        @Override
++        public int vibrationLevel() {
++            return this.vibrationLevel;
++        }
++
++        @Override
++        public GameEvent.Builder vibrationLevel(final int vibrationLevel) {
++            Preconditions.checkArgument(vibrationLevel >= 0 && vibrationLevel <= 15, "vibrationLevel must be between 1 and 15 (inclusive)");
++            this.vibrationLevel = vibrationLevel;
++            return this;
++        }
++
++        @Override
++        public net.minecraft.world.level.gameevent.GameEvent build() {
++            Preconditions.checkArgument(this.vibrationLevel >= 0 && this.vibrationLevel <= 15, "vibrationLevel must be between 1 and 15 (inclusive)");
++            return new net.minecraft.world.level.gameevent.GameEvent(this.key.value(), this.range, this.vibrationLevel);
++        }
++    }
++
++}
+diff --git a/src/main/java/net/minecraft/world/level/gameevent/GameEvent.java b/src/main/java/net/minecraft/world/level/gameevent/GameEvent.java
+index 21e1148ccc3d9c86de811d50a0c4d5b4a4d131f8..f1fda4772e26e577321b18c84a043c40b7b50a0c 100644
+--- a/src/main/java/net/minecraft/world/level/gameevent/GameEvent.java
++++ b/src/main/java/net/minecraft/world/level/gameevent/GameEvent.java
+@@ -10,60 +10,66 @@ import net.minecraft.world.level.block.state.BlockState;
+ import net.minecraft.world.phys.Vec3;
+ 
+ public class GameEvent {
+-    public static final GameEvent BLOCK_ACTIVATE = register("block_activate");
+-    public static final GameEvent BLOCK_ATTACH = register("block_attach");
+-    public static final GameEvent BLOCK_CHANGE = register("block_change");
+-    public static final GameEvent BLOCK_CLOSE = register("block_close");
+-    public static final GameEvent BLOCK_DEACTIVATE = register("block_deactivate");
+-    public static final GameEvent BLOCK_DESTROY = register("block_destroy");
+-    public static final GameEvent BLOCK_DETACH = register("block_detach");
+-    public static final GameEvent BLOCK_OPEN = register("block_open");
+-    public static final GameEvent BLOCK_PLACE = register("block_place");
+-    public static final GameEvent CONTAINER_CLOSE = register("container_close");
+-    public static final GameEvent CONTAINER_OPEN = register("container_open");
+-    public static final GameEvent DISPENSE_FAIL = register("dispense_fail");
+-    public static final GameEvent DRINK = register("drink");
+-    public static final GameEvent EAT = register("eat");
+-    public static final GameEvent ELYTRA_GLIDE = register("elytra_glide");
+-    public static final GameEvent ENTITY_DAMAGE = register("entity_damage");
+-    public static final GameEvent ENTITY_DIE = register("entity_die");
+-    public static final GameEvent ENTITY_DISMOUNT = register("entity_dismount");
+-    public static final GameEvent ENTITY_INTERACT = register("entity_interact");
+-    public static final GameEvent ENTITY_MOUNT = register("entity_mount");
+-    public static final GameEvent ENTITY_PLACE = register("entity_place");
+-    public static final GameEvent ENTITY_ROAR = register("entity_roar");
+-    public static final GameEvent ENTITY_SHAKE = register("entity_shake");
+-    public static final GameEvent EQUIP = register("equip");
+-    public static final GameEvent EXPLODE = register("explode");
+-    public static final GameEvent FLAP = register("flap");
+-    public static final GameEvent FLUID_PICKUP = register("fluid_pickup");
+-    public static final GameEvent FLUID_PLACE = register("fluid_place");
+-    public static final GameEvent HIT_GROUND = register("hit_ground");
+-    public static final GameEvent INSTRUMENT_PLAY = register("instrument_play");
+-    public static final GameEvent ITEM_INTERACT_FINISH = register("item_interact_finish");
++    // Paper start - add vibration level as a field on game event
++    public static final GameEvent BLOCK_ACTIVATE = register("block_activate", 11);
++    public static final GameEvent BLOCK_ATTACH = register("block_attach", 11);
++    public static final GameEvent BLOCK_CHANGE = register("block_change", 6);
++    public static final GameEvent BLOCK_CLOSE = register("block_close", 10);
++    public static final GameEvent BLOCK_DEACTIVATE = register("block_deactivate", 10);
++    public static final GameEvent BLOCK_DESTROY = register("block_destroy", 13);
++    public static final GameEvent BLOCK_DETACH = register("block_detach", 10);
++    public static final GameEvent BLOCK_OPEN = register("block_open", 11);
++    public static final GameEvent BLOCK_PLACE = register("block_place", 12);
++    public static final GameEvent CONTAINER_CLOSE = register("container_close", 14);
++    public static final GameEvent CONTAINER_OPEN = register("container_open", 15);
++    public static final GameEvent DISPENSE_FAIL = register("dispense_fail", 10);
++    public static final GameEvent DRINK = register("drink", 7);
++    public static final GameEvent EAT = register("eat", 8);
++    public static final GameEvent ELYTRA_GLIDE = register("elytra_glide", 4);
++    public static final GameEvent ENTITY_DAMAGE = register("entity_damage", 8);
++    public static final GameEvent ENTITY_DIE = register("entity_die", 13);
++    public static final GameEvent ENTITY_DISMOUNT = register("entity_dismount", 6);
++    public static final GameEvent ENTITY_INTERACT = register("entity_interact", 8);
++    public static final GameEvent ENTITY_MOUNT = register("entity_mount", 7);
++    public static final GameEvent ENTITY_PLACE = register("entity_place", 12);
++    public static final GameEvent ENTITY_ROAR = register("entity_roar", 9);
++    public static final GameEvent ENTITY_SHAKE = register("entity_shake", 6);
++    public static final GameEvent EQUIP = register("equip", 9);
++    public static final GameEvent EXPLODE = register("explode", 15);
++    public static final GameEvent FLAP = register("flap", 2);
++    public static final GameEvent FLUID_PICKUP = register("fluid_pickup", 13);
++    public static final GameEvent FLUID_PLACE = register("fluid_place", 12);
++    public static final GameEvent HIT_GROUND = register("hit_ground", 5);
++    public static final GameEvent INSTRUMENT_PLAY = register("instrument_play", 15);
++    public static final GameEvent ITEM_INTERACT_FINISH = register("item_interact_finish", 2);
+     public static final GameEvent ITEM_INTERACT_START = register("item_interact_start");
+-    public static final GameEvent JUKEBOX_PLAY = register("jukebox_play", 10);
+-    public static final GameEvent JUKEBOX_STOP_PLAY = register("jukebox_stop_play", 10);
+-    public static final GameEvent LIGHTNING_STRIKE = register("lightning_strike");
+-    public static final GameEvent NOTE_BLOCK_PLAY = register("note_block_play");
+-    public static final GameEvent PISTON_CONTRACT = register("piston_contract");
+-    public static final GameEvent PISTON_EXTEND = register("piston_extend");
+-    public static final GameEvent PRIME_FUSE = register("prime_fuse");
+-    public static final GameEvent PROJECTILE_LAND = register("projectile_land");
+-    public static final GameEvent PROJECTILE_SHOOT = register("projectile_shoot");
++    public static final GameEvent JUKEBOX_PLAY = register("jukebox_play", 10, 0);
++    public static final GameEvent JUKEBOX_STOP_PLAY = register("jukebox_stop_play", 10, 0);
++    public static final GameEvent LIGHTNING_STRIKE = register("lightning_strike", 15);
++    public static final GameEvent NOTE_BLOCK_PLAY = register("note_block_play", 6);
++    public static final GameEvent PISTON_CONTRACT = register("piston_contract", 14);
++    public static final GameEvent PISTON_EXTEND = register("piston_extend", 15);
++    public static final GameEvent PRIME_FUSE = register("prime_fuse", 7);
++    public static final GameEvent PROJECTILE_LAND = register("projectile_land", 8);
++    public static final GameEvent PROJECTILE_SHOOT = register("projectile_shoot", 7);
+     public static final GameEvent SCULK_SENSOR_TENDRILS_CLICKING = register("sculk_sensor_tendrils_clicking");
+-    public static final GameEvent SHEAR = register("shear");
+-    public static final GameEvent SHRIEK = register("shriek", 32);
+-    public static final GameEvent SPLASH = register("splash");
+-    public static final GameEvent STEP = register("step");
+-    public static final GameEvent SWIM = register("swim");
+-    public static final GameEvent TELEPORT = register("teleport");
++    public static final GameEvent SHEAR = register("shear", 9);
++    public static final GameEvent SHRIEK = register("shriek", 32, 0);
++    public static final GameEvent SPLASH = register("splash", 6);
++    public static final GameEvent STEP = register("step", 1);
++    public static final GameEvent SWIM = register("swim", 3);
++    public static final GameEvent TELEPORT = register("teleport", 5);
++    // Paper end
+     public static final int DEFAULT_NOTIFICATION_RADIUS = 16;
+     private final String name;
+     private final int notificationRadius;
+     private final Holder.Reference<GameEvent> builtInRegistryHolder = BuiltInRegistries.GAME_EVENT.createIntrusiveHolder(this);
+ 
+-    public GameEvent(String id, int range) {
++    // Paper start
++    public final int vibrationLevel;
++    public GameEvent(String id, int range, int vibrationLevel) {
++        this.vibrationLevel = vibrationLevel;
++        // Paper end
+         this.name = id;
+         this.notificationRadius = range;
+     }
+@@ -77,11 +83,16 @@ public class GameEvent {
+     }
+ 
+     private static GameEvent register(String id) {
+-        return register(id, 16);
++        return register(id, DEFAULT_NOTIFICATION_RADIUS, 0); // Paper
+     }
+ 
+-    private static GameEvent register(String id, int range) {
+-        return Registry.register(BuiltInRegistries.GAME_EVENT, id, new GameEvent(id, range));
++    // Paper start
++    private static GameEvent register(String id, int vibrationLevel) {
++        return register(id, DEFAULT_NOTIFICATION_RADIUS, vibrationLevel);
++    }
++    private static GameEvent register(String id, int range, int vibrationLevel) {
++        return io.papermc.paper.registry.PaperRegistryListenerManager.INSTANCE.registerWithListeners(BuiltInRegistries.GAME_EVENT, id, new GameEvent(id, range, vibrationLevel));
++        // Paper end
+     }
+ 
+     @Override
+diff --git a/src/main/java/net/minecraft/world/level/gameevent/vibrations/VibrationListener.java b/src/main/java/net/minecraft/world/level/gameevent/vibrations/VibrationListener.java
+index 103e12ec589dcbe6dbad7432b50e0644c3a37b1b..9f690a80980c1ae4e0a9bf34bcf43ab832a35e20 100644
+--- a/src/main/java/net/minecraft/world/level/gameevent/vibrations/VibrationListener.java
++++ b/src/main/java/net/minecraft/world/level/gameevent/vibrations/VibrationListener.java
+@@ -123,7 +123,8 @@ public class VibrationListener implements GameEventListener {
+     }
+ 
+     public static int getGameEventFrequency(GameEvent event) {
+-        return VibrationListener.VIBRATION_FREQUENCY_FOR_EVENT.getOrDefault(event, 0);
++        // return VibrationListener.VIBRATION_FREQUENCY_FOR_EVENT.getOrDefault(event, 0);
++        return event.vibrationLevel; // Paper - put vibration level on event
+     }
+ 
+     public void tick(Level world) {
+diff --git a/src/main/java/org/bukkit/craftbukkit/util/Commodore.java b/src/main/java/org/bukkit/craftbukkit/util/Commodore.java
+index ebbbfc318439fec33331d71563e528cd3429e541..394a406a2779c7b46ed24aebab6822e01c78d359 100644
+--- a/src/main/java/org/bukkit/craftbukkit/util/Commodore.java
++++ b/src/main/java/org/bukkit/craftbukkit/util/Commodore.java
+@@ -260,6 +260,15 @@ public class Commodore
+                             }
+                         }
+                         // Paper end - DisplaySlot
++                        // Paper start - change GameEvent to Reference
++                        if ( owner.equals( "org/bukkit/GameEvent" ) && desc.equals("Lorg/bukkit/GameEvent;" ) )
++                        {
++                            super.visitFieldInsn( opcode, owner, name, "Lio/papermc/paper/registry/Reference;" );
++                            super.visitMethodInsn( Opcodes.INVOKEINTERFACE, "io/papermc/paper/registry/Reference", "value", "()Lorg/bukkit/Keyed;", true );
++                            super.visitTypeInsn( Opcodes.CHECKCAST, "org/bukkit/GameEvent" );
++                            return;
++                        }
++                        // Paper end
+ 
+                         if ( owner.equals( "org/bukkit/block/Biome" ) )
+                         {
+diff --git a/src/test/java/org/bukkit/GameEventTest.java b/src/test/java/org/bukkit/GameEventTest.java
+index bb25e9e0ecf25c31c57f8af5ed8cccc24e72c025..9de872d357c4db84911f76a174d8c6635cdf819d 100644
+--- a/src/test/java/org/bukkit/GameEventTest.java
++++ b/src/test/java/org/bukkit/GameEventTest.java
+@@ -16,4 +16,13 @@ public class GameEventTest extends AbstractTestingBase {
+             Assert.assertNotNull("Bukkit should not be null " + nms, bukkit);
+         }
+     }
++    // Paper start
++    @Test
++    public void testVibrationLevels() {
++        for (final net.minecraft.world.level.gameevent.GameEvent nms : BuiltInRegistries.GAME_EVENT) {
++            final int expectedLevel = net.minecraft.world.level.gameevent.vibrations.VibrationListener.VIBRATION_FREQUENCY_FOR_EVENT.getInt(nms);
++            Assert.assertEquals(nms.builtInRegistryHolder().key().location() + " doesn't have the expected vibration level: expectedLevel", expectedLevel, nms.vibrationLevel);
++        }
++    }
++    // Paper end
+ }

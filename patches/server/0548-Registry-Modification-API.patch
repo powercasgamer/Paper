@@ -1084,10 +1084,10 @@ index 6e6d9573115eeedef4cb24beac43f1bc96eebb49..befe662974bd3d6b4d0a2d69f9bfef46
 +    // Paper end
  }
 diff --git a/src/main/java/net/minecraft/core/registries/BuiltInRegistries.java b/src/main/java/net/minecraft/core/registries/BuiltInRegistries.java
-index ad802eb211f05f646159d7fc53f8a9427b46cb89..960759d598d3759148b85126d65453d971c49991 100644
+index 35c9af90dfcb99fac58577174115b59b0d1262ca..4470f9a5156c318b1dad5715273c90beebfe81d3 100644
 --- a/src/main/java/net/minecraft/core/registries/BuiltInRegistries.java
 +++ b/src/main/java/net/minecraft/core/registries/BuiltInRegistries.java
-@@ -315,6 +315,7 @@ public class BuiltInRegistries {
+@@ -317,6 +317,7 @@ public class BuiltInRegistries {
      }
      public static void bootStrap(Runnable runnable) {
          // Paper end
@@ -1095,7 +1095,7 @@ index ad802eb211f05f646159d7fc53f8a9427b46cb89..960759d598d3759148b85126d65453d9
          createContents();
          runnable.run(); // Paper
          freeze();
-@@ -334,6 +335,7 @@ public class BuiltInRegistries {
+@@ -336,6 +337,7 @@ public class BuiltInRegistries {
          REGISTRY.freeze();
  
          for(Registry<?> registry : REGISTRY) {
@@ -1104,10 +1104,10 @@ index ad802eb211f05f646159d7fc53f8a9427b46cb89..960759d598d3759148b85126d65453d9
          }
  
 diff --git a/src/main/java/net/minecraft/resources/RegistryDataLoader.java b/src/main/java/net/minecraft/resources/RegistryDataLoader.java
-index 38b3460acfb8f50be8f34a6b2bd04e9686472ea1..107c7c684524a1d383d3b2a47f2f82149b712a32 100644
+index 7952635a963e28cb670c8f4869664103c7ebfefb..eb091e5bb074280e7408653155d9c526666d45be 100644
 --- a/src/main/java/net/minecraft/resources/RegistryDataLoader.java
 +++ b/src/main/java/net/minecraft/resources/RegistryDataLoader.java
-@@ -56,15 +56,20 @@ public class RegistryDataLoader {
+@@ -60,15 +60,20 @@ public class RegistryDataLoader {
          }).toList();
          RegistryOps.RegistryInfoLookup registryInfoLookup = createContext(baseRegistryManager, list);
          list.forEach((loader) -> {
@@ -1129,15 +1129,15 @@ index 38b3460acfb8f50be8f34a6b2bd04e9686472ea1..107c7c684524a1d383d3b2a47f2f8214
  
              try {
                  registry.freeze();
-@@ -144,7 +149,7 @@ public class RegistryDataLoader {
-                     DataResult<E> dataResult = decoder.parse(registryOps, jsonElement);
-                     E object = dataResult.getOrThrow(false, (error) -> {
-                     });
--                    newRegistry.register(resourceKey, object, resource.isBuiltin() ? Lifecycle.stable() : dataResult.lifecycle());
-+                    io.papermc.paper.registry.PaperRegistryListenerManager.INSTANCE.registerWithListeners(newRegistry, resourceKey, object, resource.isBuiltin() ? Lifecycle.stable() : dataResult.lifecycle()); // Paper
-                 }
- 
+@@ -147,7 +152,7 @@ public class RegistryDataLoader {
+                 DataResult<E> dataResult = decoder.parse(registryOps, jsonElement);
+                 E object = dataResult.getOrThrow(false, (error) -> {
+                 });
+-                newRegistry.register(resourceKey, object, resource.isBuiltin() ? Lifecycle.stable() : dataResult.lifecycle());
++                io.papermc.paper.registry.PaperRegistryListenerManager.INSTANCE.registerWithListeners(newRegistry, resourceKey, object, resource.isBuiltin() ? Lifecycle.stable() : dataResult.lifecycle()); // Paper
              } catch (Exception var20) {
+                 exceptions.put(resourceKey, new IllegalStateException(String.format(Locale.ROOT, "Failed to parse %s from pack %s", resourceLocation, resource.sourcePackId()), var20));
+             }
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftRegistry.java b/src/main/java/org/bukkit/craftbukkit/CraftRegistry.java
 index 763f9d4740429840e78d3462277eb577d2d9f66a..616fe7f088ab27c0588c466896fa291a4d391103 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftRegistry.java
@@ -1171,10 +1171,10 @@ index 763f9d4740429840e78d3462277eb577d2d9f66a..616fe7f088ab27c0588c466896fa291a
  
      @Override
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-index b68b19f32754c9c426e711892235b469a85fefb2..426e6910ef55c5d8a635400533473ae731fd681d 100644
+index f492902610602489dcbf8b73bc91d2e390b439eb..5d45d3acd19b4cf2aff536196656ec0544801092 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-@@ -276,7 +276,7 @@ public final class CraftServer implements Server {
+@@ -271,7 +271,7 @@ public final class CraftServer implements Server {
      protected final DedicatedServer console;
      protected final DedicatedPlayerList playerList;
      private final Map<String, World> worlds = new LinkedHashMap<String, World>();
@@ -1182,8 +1182,8 @@ index b68b19f32754c9c426e711892235b469a85fefb2..426e6910ef55c5d8a635400533473ae7
 +    // private final Map<Class<?>, Registry<?>> registries = new HashMap<>(); // Paper - replace
      private YamlConfiguration configuration;
      private YamlConfiguration commandsConfiguration;
-     private final Yaml yaml = new Yaml(new SafeConstructor());
-@@ -2543,7 +2543,7 @@ public final class CraftServer implements Server {
+     private final Yaml yaml = new Yaml(new SafeConstructor(new LoaderOptions()));
+@@ -2541,7 +2541,7 @@ public final class CraftServer implements Server {
  
      @Override
      public <T extends Keyed> Registry<T> getRegistry(Class<T> aClass) {

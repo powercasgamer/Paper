@@ -17,7 +17,7 @@ index 38a68a5c5074b725e9d75d525b4a280c60f5fd2d..308d99d1fbfd6722edb5e6e49e0e468e
  
      /* ********************** *
 diff --git a/src/main/java/org/bukkit/GameEvent.java b/src/main/java/org/bukkit/GameEvent.java
-index 4808824a55628d1e2344981d40d3665d572117e0..4b01e058b99fecdbe832991f0978c508273051dc 100644
+index a472a6b8d8e5525efcf13f3dcdb4871c9a7aa39b..c91ba0b3cb59d3a9d51aa66cb29f00baee54d83d 100644
 --- a/src/main/java/org/bukkit/GameEvent.java
 +++ b/src/main/java/org/bukkit/GameEvent.java
 @@ -1,5 +1,6 @@
@@ -27,7 +27,7 @@ index 4808824a55628d1e2344981d40d3665d572117e0..4b01e058b99fecdbe832991f0978c508
  import java.util.Collection;
  import java.util.Collections;
  import java.util.HashMap;
-@@ -10,93 +11,94 @@ import org.jetbrains.annotations.Nullable;
+@@ -10,95 +11,96 @@ import org.jetbrains.annotations.Nullable;
  /**
   * Represents a generic Mojang game event.
   */
@@ -91,13 +91,17 @@ index 4808824a55628d1e2344981d40d3665d572117e0..4b01e058b99fecdbe832991f0978c508
      @Deprecated
 -    public static final GameEvent ENTITY_DAMAGED = getEvent("entity_damage");
 -    public static final GameEvent ENTITY_DIE = getEvent("entity_die");
+-    public static final GameEvent ENTITY_DISMOUNT = getEvent("entity_dismount");
 +    public static final Reference<GameEvent> ENTITY_DAMAGED = getEvent("entity_damage");
 +    public static final Reference<GameEvent> ENTITY_DIE = getEvent("entity_die");
++    public static final Reference<GameEvent> ENTITY_DISMOUNT = getEvent("entity_dismount");
      @Deprecated
 -    public static final GameEvent ENTITY_DYING = getEvent("entity_die");
 -    public static final GameEvent ENTITY_INTERACT = getEvent("entity_interact");
+-    public static final GameEvent ENTITY_MOUNT = getEvent("entity_mount");
 +    public static final Reference<GameEvent> ENTITY_DYING = getEvent("entity_die");
 +    public static final Reference<GameEvent> ENTITY_INTERACT = getEvent("entity_interact");
++    public static final Reference<GameEvent> ENTITY_MOUNT = getEvent("entity_mount");
      @Deprecated
 -    public static final GameEvent ENTITY_KILLED = getEvent("entity_die");
 -    public static final GameEvent ENTITY_PLACE = getEvent("entity_place");
@@ -187,7 +191,7 @@ index 4808824a55628d1e2344981d40d3665d572117e0..4b01e058b99fecdbe832991f0978c508
      }
  
      @NotNull
-@@ -110,10 +112,12 @@ public final class GameEvent implements Keyed {
+@@ -112,10 +114,12 @@ public final class GameEvent implements Keyed {
       *
       * @param namespacedKey the key
       * @return the event or null
@@ -201,7 +205,7 @@ index 4808824a55628d1e2344981d40d3665d572117e0..4b01e058b99fecdbe832991f0978c508
      }
  
      /**
-@@ -123,10 +127,42 @@ public final class GameEvent implements Keyed {
+@@ -125,10 +129,64 @@ public final class GameEvent implements Keyed {
       */
      @NotNull
      public static Collection<GameEvent> values() {
@@ -222,6 +226,13 @@ index 4808824a55628d1e2344981d40d3665d572117e0..4b01e058b99fecdbe832991f0978c508
 +     * @return the range
 +     */
 +    public abstract int getRange();
++
++    /**
++     * Gets the vibration level of the game event for vibration listeners.
++     *
++     * @return the vibration level
++     */
++    public abstract int getVibrationLevel();
 +
 +    @org.jetbrains.annotations.ApiStatus.Experimental
 +    @org.jetbrains.annotations.ApiStatus.NonExtendable
@@ -244,6 +255,21 @@ index 4808824a55628d1e2344981d40d3665d572117e0..4b01e058b99fecdbe832991f0978c508
 +         */
 +        @org.jetbrains.annotations.Contract("_ -> this")
 +        @NotNull Builder range(int range);
++
++        /**
++         * Gets the vibration level of the game event for vibration listeners.
++         *
++         * @return the vibration level
++         */
++        int vibrationLevel();
++
++        /**
++         * Sets the vibration level of the game event for vibration listeners.
++         *
++         * @param vibrationLevel the vibration level with range [0-15]
++         */
++        @org.jetbrains.annotations.Contract("_ -> this")
++        @NotNull Builder vibrationLevel(int vibrationLevel);
 +    }
 +    // Paper end
  }
