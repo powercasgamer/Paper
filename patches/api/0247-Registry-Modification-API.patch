@@ -297,7 +297,7 @@ index 0000000000000000000000000000000000000000..38a68a5c5074b725e9d75d525b4a280c
 +}
 diff --git a/src/main/java/io/papermc/paper/registry/RegistryManager.java b/src/main/java/io/papermc/paper/registry/RegistryManager.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..7b08cf9fc00732d4a92a304b6e3e6365803748b2
+index 0000000000000000000000000000000000000000..bba80f38b9a1ebaf06161332e369d227ec46f7c6
 --- /dev/null
 +++ b/src/main/java/io/papermc/paper/registry/RegistryManager.java
 @@ -0,0 +1,39 @@
@@ -305,7 +305,7 @@ index 0000000000000000000000000000000000000000..7b08cf9fc00732d4a92a304b6e3e6365
 +
 +import io.papermc.paper.registry.event.listener.RegistryAdditionListener;
 +import io.papermc.paper.registry.event.listener.RegistryPreFreezeListener;
-+import org.bukkit.Keyed;
++import net.kyori.adventure.key.Keyed;
 +import org.jetbrains.annotations.ApiStatus;
 +import org.jetbrains.annotations.NotNull;
 +
@@ -373,14 +373,14 @@ index 0000000000000000000000000000000000000000..0476b1dc645d462662bd6cadddc1e99e
 +}
 diff --git a/src/main/java/io/papermc/paper/registry/event/RegistryAdditionEvent.java b/src/main/java/io/papermc/paper/registry/event/RegistryAdditionEvent.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..3859d26301af20e5ed46fdfaad53f54ac0076017
+index 0000000000000000000000000000000000000000..f9d3d4a39350d7d473f39f41ea66d4b6bc155a3e
 --- /dev/null
 +++ b/src/main/java/io/papermc/paper/registry/event/RegistryAdditionEvent.java
 @@ -0,0 +1,19 @@
 +package io.papermc.paper.registry.event;
 +
 +import io.papermc.paper.registry.RegistryBuilder;
-+import org.bukkit.Keyed;
++import net.kyori.adventure.key.Keyed;
 +import org.jetbrains.annotations.ApiStatus;
 +import org.jetbrains.annotations.NotNull;
 +
@@ -513,7 +513,7 @@ index 0000000000000000000000000000000000000000..39fcee759c591cb98bccc214550b72ec
 +}
 diff --git a/src/main/java/io/papermc/paper/registry/event/listener/RegistryAdditionListener.java b/src/main/java/io/papermc/paper/registry/event/listener/RegistryAdditionListener.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..d309df3c27724d3c25094d043d77a61057ab48be
+index 0000000000000000000000000000000000000000..ec4749da1c7068f7d125f6a9f94c77db341594c2
 --- /dev/null
 +++ b/src/main/java/io/papermc/paper/registry/event/listener/RegistryAdditionListener.java
 @@ -0,0 +1,21 @@
@@ -521,7 +521,7 @@ index 0000000000000000000000000000000000000000..d309df3c27724d3c25094d043d77a610
 +
 +import io.papermc.paper.registry.RegistryBuilder;
 +import io.papermc.paper.registry.event.RegistryAdditionEvent;
-+import org.bukkit.Keyed;
++import net.kyori.adventure.key.Keyed;
 +import org.jetbrains.annotations.ApiStatus;
 +import org.jetbrains.annotations.NotNull;
 +
@@ -540,7 +540,7 @@ index 0000000000000000000000000000000000000000..d309df3c27724d3c25094d043d77a610
 +}
 diff --git a/src/main/java/io/papermc/paper/registry/event/listener/RegistryPreFreezeListener.java b/src/main/java/io/papermc/paper/registry/event/listener/RegistryPreFreezeListener.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..cbefe6d5eb18e9f554c85160b234a9890f836351
+index 0000000000000000000000000000000000000000..f1558de8054821d5a517cddc3ce426ce5ba0d1dc
 --- /dev/null
 +++ b/src/main/java/io/papermc/paper/registry/event/listener/RegistryPreFreezeListener.java
 @@ -0,0 +1,22 @@
@@ -548,7 +548,7 @@ index 0000000000000000000000000000000000000000..cbefe6d5eb18e9f554c85160b234a989
 +
 +import io.papermc.paper.registry.RegistryBuilder;
 +import io.papermc.paper.registry.event.RegistryPreFreezeEvent;
-+import org.bukkit.Keyed;
++import net.kyori.adventure.key.Keyed;
 +import org.jetbrains.annotations.ApiStatus;
 +import org.jetbrains.annotations.NotNull;
 +
