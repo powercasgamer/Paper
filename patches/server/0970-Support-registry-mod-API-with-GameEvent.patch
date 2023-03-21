@@ -5,7 +5,7 @@ Subject: [PATCH] Support registry mod API with GameEvent
 
 
 diff --git a/src/main/java/io/papermc/paper/registry/PaperRegistries.java b/src/main/java/io/papermc/paper/registry/PaperRegistries.java
-index be562b04c626c2fe8c792f445cbdd73a0bb5327f..198acd382c3059e040fc3cc8fd3f8748ab0efed4 100644
+index eced099e2a6fc21eb91aabfedec8dc2fc1793383..5f1da33d3e1332b28517e5fe0978173d5ed6a944 100644
 --- a/src/main/java/io/papermc/paper/registry/PaperRegistries.java
 +++ b/src/main/java/io/papermc/paper/registry/PaperRegistries.java
 @@ -2,6 +2,7 @@ package io.papermc.paper.registry;
@@ -291,7 +291,7 @@ index ebbbfc318439fec33331d71563e528cd3429e541..394a406a2779c7b46ed24aebab6822e0
                          if ( owner.equals( "org/bukkit/block/Biome" ) )
                          {
 diff --git a/src/test/java/org/bukkit/GameEventTest.java b/src/test/java/org/bukkit/GameEventTest.java
-index bb25e9e0ecf25c31c57f8af5ed8cccc24e72c025..9de872d357c4db84911f76a174d8c6635cdf819d 100644
+index bb25e9e0ecf25c31c57f8af5ed8cccc24e72c025..8b62b963970970b310e87adf474ab9fc42c1b5e3 100644
 --- a/src/test/java/org/bukkit/GameEventTest.java
 +++ b/src/test/java/org/bukkit/GameEventTest.java
 @@ -16,4 +16,13 @@ public class GameEventTest extends AbstractTestingBase {
@@ -303,7 +303,7 @@ index bb25e9e0ecf25c31c57f8af5ed8cccc24e72c025..9de872d357c4db84911f76a174d8c663
 +    public void testVibrationLevels() {
 +        for (final net.minecraft.world.level.gameevent.GameEvent nms : BuiltInRegistries.GAME_EVENT) {
 +            final int expectedLevel = net.minecraft.world.level.gameevent.vibrations.VibrationListener.VIBRATION_FREQUENCY_FOR_EVENT.getInt(nms);
-+            Assert.assertEquals(nms.builtInRegistryHolder().key().location() + " doesn't have the expected vibration level: expectedLevel", expectedLevel, nms.vibrationLevel);
++            Assert.assertEquals(nms.builtInRegistryHolder().key().location() + " doesn't have the expected vibration level: " + expectedLevel, expectedLevel, nms.vibrationLevel);
 +        }
 +    }
 +    // Paper end
