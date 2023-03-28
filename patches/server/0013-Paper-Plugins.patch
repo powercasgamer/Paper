@@ -594,10 +594,10 @@ index 0000000000000000000000000000000000000000..89bf48fd581ee6580b91e2eb31dd532c
 +}
 diff --git a/src/main/java/io/papermc/paper/plugin/bootstrap/PluginBootstrapContextImpl.java b/src/main/java/io/papermc/paper/plugin/bootstrap/PluginBootstrapContextImpl.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..9f34494feea188babe86b1e561a5cbb3a825a0a3
+index 0000000000000000000000000000000000000000..b63c0273ef46acf19a95085ebad8d21a24cb5d6b
 --- /dev/null
 +++ b/src/main/java/io/papermc/paper/plugin/bootstrap/PluginBootstrapContextImpl.java
-@@ -0,0 +1,32 @@
+@@ -0,0 +1,37 @@
 +package io.papermc.paper.plugin.bootstrap;
 +
 +import io.papermc.paper.plugin.configuration.PluginMeta;
@@ -607,12 +607,12 @@ index 0000000000000000000000000000000000000000..9f34494feea188babe86b1e561a5cbb3
 +import org.jetbrains.annotations.NotNull;
 +
 +public record PluginBootstrapContextImpl(PluginMeta config, Path dataFolder,
-+                                         ComponentLogger logger) implements BootstrapContext {
++                                         ComponentLogger logger, Path pluginSource) implements BootstrapContext {
 +
 +    public static PluginBootstrapContextImpl of(PluginProvider<?> provider, Path pluginFolder) {
 +        Path dataFolder = pluginFolder.resolve(provider.getMeta().getDisplayName());
 +
-+        return new PluginBootstrapContextImpl(provider.getMeta(), dataFolder, ComponentLogger.logger(provider.getLogger().getName()));
++        return new PluginBootstrapContextImpl(provider.getMeta(), dataFolder, ComponentLogger.logger(provider.getLogger().getName()), provider.getSource());
 +    }
 +
 +    @Override
@@ -629,10 +629,15 @@ index 0000000000000000000000000000000000000000..9f34494feea188babe86b1e561a5cbb3
 +    public @NotNull ComponentLogger getLogger() {
 +        return this.logger;
 +    }
++
++    @Override
++    public @NotNull Path getPluginSource() {
++        return this.pluginSource;
++    }
 +}
 diff --git a/src/main/java/io/papermc/paper/plugin/bootstrap/PluginProviderContextImpl.java b/src/main/java/io/papermc/paper/plugin/bootstrap/PluginProviderContextImpl.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..2e450a9fce66e63ec94ee3d2579265eda28a1c3f
+index 0000000000000000000000000000000000000000..064ee6b56ac59539e23db540122285a6ba86b10d
 --- /dev/null
 +++ b/src/main/java/io/papermc/paper/plugin/bootstrap/PluginProviderContextImpl.java
 @@ -0,0 +1,39 @@
@@ -6142,7 +6147,7 @@ index 0000000000000000000000000000000000000000..14ed05945ba5bfeb2b539d4786278b0e
 +
 diff --git a/src/main/java/io/papermc/paper/plugin/storage/BootstrapProviderStorage.java b/src/main/java/io/papermc/paper/plugin/storage/BootstrapProviderStorage.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..2851c22ed74792bf7b60139c46776407e5163463
+index 0000000000000000000000000000000000000000..b3417fe6bc7e0ed6938d0296b8db92fcfbcb5481
 --- /dev/null
 +++ b/src/main/java/io/papermc/paper/plugin/storage/BootstrapProviderStorage.java
 @@ -0,0 +1,55 @@

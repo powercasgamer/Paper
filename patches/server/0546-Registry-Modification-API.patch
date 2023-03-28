@@ -8,7 +8,7 @@ public net.minecraft.server.RegistryLayer STATIC_ACCESS
 public net.minecraft.core.MappedRegistry validateWrite(Lnet/minecraft/resources/ResourceKey;)V
 
 diff --git a/src/main/java/io/papermc/paper/plugin/bootstrap/PluginBootstrapContextImpl.java b/src/main/java/io/papermc/paper/plugin/bootstrap/PluginBootstrapContextImpl.java
-index 9f34494feea188babe86b1e561a5cbb3a825a0a3..19653063d0480f9c601ffc4078fd3695671de358 100644
+index b63c0273ef46acf19a95085ebad8d21a24cb5d6b..b8b8e6efae1b8f8beeb79666db6935b37bea454d 100644
 --- a/src/main/java/io/papermc/paper/plugin/bootstrap/PluginBootstrapContextImpl.java
 +++ b/src/main/java/io/papermc/paper/plugin/bootstrap/PluginBootstrapContextImpl.java
 @@ -2,17 +2,23 @@ package io.papermc.paper.plugin.bootstrap;
@@ -21,15 +21,15 @@ index 9f34494feea188babe86b1e561a5cbb3a825a0a3..19653063d0480f9c601ffc4078fd3695
  import org.jetbrains.annotations.NotNull;
  
  public record PluginBootstrapContextImpl(PluginMeta config, Path dataFolder,
--                                         ComponentLogger logger) implements BootstrapContext {
-+                                         ComponentLogger logger, RegistryManager registryManager) implements BootstrapContext {
+-                                         ComponentLogger logger, Path pluginSource) implements BootstrapContext {
++                                         ComponentLogger logger, Path pluginSource, RegistryManager registryManager) implements BootstrapContext {
  
 -    public static PluginBootstrapContextImpl of(PluginProvider<?> provider, Path pluginFolder) {
 +    public static PluginBootstrapContextImpl of(PluginProvider<?> provider, Path pluginFolder, RegistryManager registryManager) {
          Path dataFolder = pluginFolder.resolve(provider.getMeta().getDisplayName());
  
--        return new PluginBootstrapContextImpl(provider.getMeta(), dataFolder, ComponentLogger.logger(provider.getLogger().getName()));
-+        return new PluginBootstrapContextImpl(provider.getMeta(), dataFolder, ComponentLogger.logger(provider.getLogger().getName()), registryManager);
+-        return new PluginBootstrapContextImpl(provider.getMeta(), dataFolder, ComponentLogger.logger(provider.getLogger().getName()), provider.getSource());
++        return new PluginBootstrapContextImpl(provider.getMeta(), dataFolder, ComponentLogger.logger(provider.getLogger().getName()), provider.getSource(), registryManager);
 +    }
 +
 +    @Override
@@ -39,7 +39,7 @@ index 9f34494feea188babe86b1e561a5cbb3a825a0a3..19653063d0480f9c601ffc4078fd3695
  
      @Override
 diff --git a/src/main/java/io/papermc/paper/plugin/storage/BootstrapProviderStorage.java b/src/main/java/io/papermc/paper/plugin/storage/BootstrapProviderStorage.java
-index dc30b820006ca5aa3b6cc0c9bc9c8a833f6db06a..f6a178e7a7e359265f66dcb7fbbbe695f600fcad 100644
+index b3417fe6bc7e0ed6938d0296b8db92fcfbcb5481..c239c00bf83669235b9c49177094e90696995332 100644
 --- a/src/main/java/io/papermc/paper/plugin/storage/BootstrapProviderStorage.java
 +++ b/src/main/java/io/papermc/paper/plugin/storage/BootstrapProviderStorage.java
 @@ -33,7 +33,8 @@ public class BootstrapProviderStorage extends SimpleProviderStorage<PluginBootst
