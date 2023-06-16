@@ -27,10 +27,10 @@ index 11038da2e071699d6561a331565db0c8d7850d0e..317acfec5894101294a55abff6181943
 +/.factorypath
 diff --git a/build.gradle.kts b/build.gradle.kts
 new file mode 100644
-index 0000000000000000000000000000000000000000..73bc33e7a498f8eca2d68c4588b04de4eaf8fc7a
+index 0000000000000000000000000000000000000000..c9559c3c1d112ef58804f3568c9c77cea10574b9
 --- /dev/null
 +++ b/build.gradle.kts
-@@ -0,0 +1,85 @@
+@@ -0,0 +1,87 @@
 +plugins {
 +    `java-library`
 +    `maven-publish`
@@ -41,6 +41,7 @@ index 0000000000000000000000000000000000000000..73bc33e7a498f8eca2d68c4588b04de4
 +    withJavadocJar()
 +}
 +
++val mavenResolverVersion = "1.9.10"
 +val annotationsVersion = "24.0.1"
 +
 +dependencies {
@@ -52,8 +53,8 @@ index 0000000000000000000000000000000000000000..73bc33e7a498f8eca2d68c4588b04de4
 +    api("org.joml:joml:1.10.5")
 +
 +    compileOnly("org.apache.maven:maven-resolver-provider:3.9.2")
-+    compileOnly("org.apache.maven.resolver:maven-resolver-connector-basic:1.9.10")
-+    compileOnly("org.apache.maven.resolver:maven-resolver-transport-http:1.9.10")
++    compileOnly("org.apache.maven.resolver:maven-resolver-connector-basic:$mavenResolverVersion")
++    compileOnly("org.apache.maven.resolver:maven-resolver-transport-http:$mavenResolverVersion")
 +
 +    val annotations = "org.jetbrains:annotations-java5:$annotationsVersion"
 +    compileOnly(annotations)
@@ -102,6 +103,7 @@ index 0000000000000000000000000000000000000000..73bc33e7a498f8eca2d68c4588b04de4
 +        "https://javadoc.io/doc/org.yaml/snakeyaml/2.0/",
 +        "https://javadoc.io/doc/org.jetbrains/annotations-java5/$annotationsVersion/",
 +        "https://javadoc.io/doc/net.md-5/bungeecord-chat/1.16-R0.4/",
++        "https://javadoc.io/doc/org.apache.maven.resolver/maven-resolver-connector-basic/$mavenResolverVersion",
 +    )
 +    options.tags("apiNote:a:API Note:")
 +

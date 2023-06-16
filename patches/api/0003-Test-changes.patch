@@ -12,10 +12,10 @@ Co-authored-by: Riley Park <rileysebastianpark@gmail.com>
 Co-authored-by: Jake Potrebic <jake.m.potrebic@gmail.com>
 
 diff --git a/build.gradle.kts b/build.gradle.kts
-index 34117c1178e04885ff9be5b73c7c2547e77ed4d5..c174d9d6534382ae9d002b883bde929d46e32789 100644
+index 895d10bb8fab7af9f7bcdfca1b0aaf59f602deda..3bb06f556940370d813f84a5417179364fadcce9 100644
 --- a/build.gradle.kts
 +++ b/build.gradle.kts
-@@ -37,6 +37,7 @@ dependencies {
+@@ -38,6 +38,7 @@ dependencies {
      compileOnlyApi(checkerQual)
      testCompileOnly(checkerQual)
      // Paper end
