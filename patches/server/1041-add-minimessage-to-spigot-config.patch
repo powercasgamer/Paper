@@ -1,0 +1,180 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: powercas_gamer <cas@mizule.dev>
+Date: Thu, 18 Jul 2024 17:07:35 +0000
+Subject: [PATCH] add minimessage to spigot config
+
+
+diff --git a/src/main/java/io/papermc/paper/adventure/PaperAdventure.java b/src/main/java/io/papermc/paper/adventure/PaperAdventure.java
+index 22fe529890f34f66534c01248f654dc911b44c3b..0eae6b04eb787f559c4aae48c993377ba631c7b2 100644
+--- a/src/main/java/io/papermc/paper/adventure/PaperAdventure.java
++++ b/src/main/java/io/papermc/paper/adventure/PaperAdventure.java
+@@ -31,9 +31,11 @@ import net.kyori.adventure.text.event.DataComponentValueConverterRegistry;
+ import net.kyori.adventure.text.flattener.ComponentFlattener;
+ import net.kyori.adventure.text.format.Style;
+ import net.kyori.adventure.text.format.TextColor;
++import net.kyori.adventure.text.minimessage.MiniMessage;
+ import net.kyori.adventure.text.serializer.ComponentSerializer;
+ import net.kyori.adventure.text.serializer.ansi.ANSIComponentSerializer;
+ import net.kyori.adventure.text.serializer.gson.GsonComponentSerializer;
++import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
+ import net.kyori.adventure.text.serializer.plain.PlainComponentSerializer;
+ import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
+ import net.kyori.adventure.translation.GlobalTranslator;
+@@ -147,6 +149,22 @@ public final class PaperAdventure {
+     private PaperAdventure() {
+     }
+ 
++    // Paper start - add MiniMessage thing
++    public static Component maybeAsMiniMessage(final String input) {
++        return maybeAsMiniMessage(input, false);
++    }
++
++    public static Component maybeAsMiniMessage(final String input, final boolean legacy) {
++        if (legacy) {
++            return LegacyComponentSerializer.legacyAmpersand().deserialize(input);
++        }
++        if (input.startsWith("AwesomeMiniMessageMessageHere::")) {
++            return MiniMessage.miniMessage().deserialize(input);
++        }
++        return Component.text(input);
++    }
++    // Ppaer end - add MiniMessage thing
++
+     // Key
+ 
+     public static ResourceLocation asVanilla(final Key key) {
+diff --git a/src/main/java/io/papermc/paper/configuration/GlobalConfiguration.java b/src/main/java/io/papermc/paper/configuration/GlobalConfiguration.java
+index d2ee3c82994132f8045e9c549ab7db39b89ce13a..3b9e079a878c15c35280ee4d02d98e0286d3b5ef 100644
+--- a/src/main/java/io/papermc/paper/configuration/GlobalConfiguration.java
++++ b/src/main/java/io/papermc/paper/configuration/GlobalConfiguration.java
+@@ -4,7 +4,6 @@ import co.aikar.timings.MinecraftTimings;
+ import com.mojang.logging.LogUtils;
+ import io.papermc.paper.configuration.constraint.Constraints;
+ import io.papermc.paper.configuration.legacy.RequiresSpigotInitialization;
+-import io.papermc.paper.configuration.legacy.SpigotMessagesInitializer;
+ import io.papermc.paper.configuration.type.number.IntOr;
+ import net.kyori.adventure.text.Component;
+ import net.kyori.adventure.text.TranslatableComponent;
+@@ -26,7 +25,7 @@ import java.util.Objects;
+ @SuppressWarnings({"CanBeFinal", "FieldCanBeLocal", "FieldMayBeFinal", "NotNullFieldNotInitialized", "InnerClassMayBeStatic"})
+ public class GlobalConfiguration extends ConfigurationPart {
+     private static final Logger LOGGER = LogUtils.getLogger();
+-    static final int CURRENT_VERSION = 29; // (when you change the version, change the comment, so it conflicts on rebases): <insert changes here>
++    static final int CURRENT_VERSION = 30; // (when you change the version, change the comment, so it conflicts on rebases): MORE MESSAGES WOOOOO
+     private static GlobalConfiguration instance;
+     public static boolean isFirstStart = false;
+     public static GlobalConfiguration get() {
+@@ -88,7 +87,6 @@ public class GlobalConfiguration extends ConfigurationPart {
+             public Component connectionThrottle = Component.text("Connection throttled! Please wait before reconnecting.");
+             public Component flyingPlayer = Component.translatable("multiplayer.disconnect.flying");
+             public Component flyingVehicle = Component.translatable("multiplayer.disconnect.flying");
+-            @RequiresSpigotInitialization(SpigotMessagesInitializer.class)
+             public Component whitelist = Component.translatable("multiplayer.disconnect.not_whitelisted"); // Default to Spigot?
+             public Component serverFull = Component.translatable("multiplayer.disconnect.server_full"); // Default to Spigot?
+             public TranslatableComponent outdatedClient = Component.translatable("multiplayer.disconnect.outdated_client"); // Default to Spigot?
+diff --git a/src/main/java/io/papermc/paper/configuration/PaperConfigurations.java b/src/main/java/io/papermc/paper/configuration/PaperConfigurations.java
+index 12f025c652778b517d0505c1153a4619c1951ae0..22c11e173d783fc87361049f9fed6ea872bea0b0 100644
+--- a/src/main/java/io/papermc/paper/configuration/PaperConfigurations.java
++++ b/src/main/java/io/papermc/paper/configuration/PaperConfigurations.java
+@@ -19,6 +19,7 @@ import io.papermc.paper.configuration.serializer.registry.RegistryValueSerialize
+ import io.papermc.paper.configuration.transformation.Transformations;
+ import io.papermc.paper.configuration.transformation.global.LegacyPaperConfig;
+ import io.papermc.paper.configuration.transformation.global.versioned.V29_LogIPs;
++import io.papermc.paper.configuration.transformation.global.versioned.V30_SpigotMessages;
+ import io.papermc.paper.configuration.transformation.world.FeatureSeedsGeneration;
+ import io.papermc.paper.configuration.transformation.world.LegacyPaperWorldConfig;
+ import io.papermc.paper.configuration.transformation.world.versioned.V29_ZeroWorldHeight;
+diff --git a/src/main/java/io/papermc/paper/configuration/legacy/SpigotMessagesInitializer.java b/src/main/java/io/papermc/paper/configuration/legacy/SpigotMessagesInitializer.java
+deleted file mode 100644
+index ee6f70a983c7d17071c92ef008764fe706103412..0000000000000000000000000000000000000000
+--- a/src/main/java/io/papermc/paper/configuration/legacy/SpigotMessagesInitializer.java
++++ /dev/null
+@@ -1,39 +0,0 @@
+-package io.papermc.paper.configuration.legacy;
+-
+-import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
+-import org.checkerframework.checker.nullness.qual.Nullable;
+-import org.spigotmc.SpigotConfig;
+-import org.spigotmc.SpigotWorldConfig;
+-import org.spongepowered.configurate.ConfigurationNode;
+-import org.spongepowered.configurate.objectmapping.meta.NodeResolver;
+-import org.spongepowered.configurate.serialize.SerializationException;
+-import org.spongepowered.configurate.util.NamingSchemes;
+-
+-public class SpigotMessagesInitializer implements NodeResolver {
+-
+-    private final String name;
+-    private final SpigotWorldConfig spigotConfig;
+-
+-    public SpigotMessagesInitializer(String name, SpigotWorldConfig spigotConfig) {
+-        this.name = name;
+-        this.spigotConfig = spigotConfig;
+-        System.out.println("NAME:::::" + name);
+-    }
+-
+-    @Override
+-    public @Nullable ConfigurationNode resolve(ConfigurationNode parent) {
+-        final String key = NamingSchemes.LOWER_CASE_DASHED.coerce(this.name);
+-        final ConfigurationNode node = parent.node(key);
+-        final String old = SpigotConfig.whitelistMessage;
+-        System.out.println("old: " + old);
+-        if (node.virtual() && old != null) {
+-            System.out.println("is vrirtual and not null, setting");
+-            try {
+-                node.set(LegacyComponentSerializer.legacyAmpersand().deserialize(old));
+-            } catch (SerializationException e) {
+-                throw new RuntimeException(e);
+-            }
+-        }
+-        return node;
+-    }
+-}
+diff --git a/src/main/java/io/papermc/paper/configuration/transformation/global/versioned/V30_SpigotMessages.java b/src/main/java/io/papermc/paper/configuration/transformation/global/versioned/V30_SpigotMessages.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..63a47542b34a777652f2b78d0c92a8b5703342d1
+--- /dev/null
++++ b/src/main/java/io/papermc/paper/configuration/transformation/global/versioned/V30_SpigotMessages.java
+@@ -0,0 +1,43 @@
++package io.papermc.paper.configuration.transformation.global.versioned;
++
++import java.util.Properties;
++import net.kyori.adventure.text.Component;
++import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
++import net.minecraft.server.MinecraftServer;
++import net.minecraft.server.dedicated.DedicatedServer;
++import org.checkerframework.checker.nullness.qual.Nullable;
++import org.spigotmc.SpigotConfig;
++import org.spongepowered.configurate.ConfigurateException;
++import org.spongepowered.configurate.ConfigurationNode;
++import org.spongepowered.configurate.NodePath;
++import org.spongepowered.configurate.transformation.ConfigurationTransformation;
++import org.spongepowered.configurate.transformation.TransformAction;
++
++import static org.spongepowered.configurate.NodePath.path;
++
++public class V30_SpigotMessages implements TransformAction {
++
++    private static final int VERSION = 30;
++    private static final NodePath PATH = path("messages", "kick", "whitelist");
++    private static final V30_SpigotMessages INSTANCE = new V30_SpigotMessages();
++
++    private V30_SpigotMessages() {
++    }
++
++    public static void apply(final ConfigurationTransformation.VersionedBuilder builder) {
++        builder.addVersion(VERSION, ConfigurationTransformation.builder().addAction(PATH, INSTANCE).build());
++    }
++
++    @Override
++    public Object @Nullable [] visitPath(final NodePath path, final ConfigurationNode value) throws ConfigurateException {
++        if (value.virtual()) {
++            final Component message = LegacyComponentSerializer.legacyAmpersand().deserialize(SpigotConfig.whitelistMessage);
++            value.set(message);
++            return null;
++        }
++
++        return null;
++
++    }
++
++}

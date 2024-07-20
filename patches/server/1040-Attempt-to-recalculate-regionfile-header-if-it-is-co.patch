@@ -9,6 +9,159 @@ we instead drop the current regionfile header and recalculate -
 hoping that at least then we don't swap chunks, and maybe recover
 them all.
 
+diff --git a/src/main/java/io/papermc/paper/configuration/GlobalConfiguration.java b/src/main/java/io/papermc/paper/configuration/GlobalConfiguration.java
+index 379452394679c466a09441d4c12882d0d00d9ef3..d2ee3c82994132f8045e9c549ab7db39b89ce13a 100644
+--- a/src/main/java/io/papermc/paper/configuration/GlobalConfiguration.java
++++ b/src/main/java/io/papermc/paper/configuration/GlobalConfiguration.java
+@@ -3,8 +3,11 @@ package io.papermc.paper.configuration;
+ import co.aikar.timings.MinecraftTimings;
+ import com.mojang.logging.LogUtils;
+ import io.papermc.paper.configuration.constraint.Constraints;
++import io.papermc.paper.configuration.legacy.RequiresSpigotInitialization;
++import io.papermc.paper.configuration.legacy.SpigotMessagesInitializer;
+ import io.papermc.paper.configuration.type.number.IntOr;
+ import net.kyori.adventure.text.Component;
++import net.kyori.adventure.text.TranslatableComponent;
+ import net.kyori.adventure.text.format.NamedTextColor;
+ import net.minecraft.network.protocol.Packet;
+ import net.minecraft.network.protocol.game.ServerboundPlaceRecipePacket;
+@@ -85,6 +88,11 @@ public class GlobalConfiguration extends ConfigurationPart {
+             public Component connectionThrottle = Component.text("Connection throttled! Please wait before reconnecting.");
+             public Component flyingPlayer = Component.translatable("multiplayer.disconnect.flying");
+             public Component flyingVehicle = Component.translatable("multiplayer.disconnect.flying");
++            @RequiresSpigotInitialization(SpigotMessagesInitializer.class)
++            public Component whitelist = Component.translatable("multiplayer.disconnect.not_whitelisted"); // Default to Spigot?
++            public Component serverFull = Component.translatable("multiplayer.disconnect.server_full"); // Default to Spigot?
++            public TranslatableComponent outdatedClient = Component.translatable("multiplayer.disconnect.outdated_client"); // Default to Spigot?
++            public TranslatableComponent outdatedServer = Component.translatable("multiplayer.disconnect.outdated_server"); // Default to Spigot?
+         }
+ 
+         public Component noPermission = Component.text("I'm sorry, but you do not have permission to perform this command. Please contact the server administrators if you believe that this is in error.", NamedTextColor.RED);
+diff --git a/src/main/java/io/papermc/paper/configuration/PaperConfigurations.java b/src/main/java/io/papermc/paper/configuration/PaperConfigurations.java
+index 83a726bcf8b7dce73a361b0d79dbd63a0afc7a12..12f025c652778b517d0505c1153a4619c1951ae0 100644
+--- a/src/main/java/io/papermc/paper/configuration/PaperConfigurations.java
++++ b/src/main/java/io/papermc/paper/configuration/PaperConfigurations.java
+@@ -279,6 +279,7 @@ public class PaperConfigurations extends Configurations<GlobalConfiguration, Wor
+         final ConfigurationTransformation.VersionedBuilder versionedBuilder = Transformations.versionedBuilder();
+         V29_LogIPs.apply(versionedBuilder);
+         // ADD FUTURE VERSIONED TRANSFORMS TO versionedBuilder HERE
++        // V30_SpigotMessages.apply(versionedBuilder);
+         versionedBuilder.build().apply(node);
+     }
+ 
+diff --git a/src/main/java/io/papermc/paper/configuration/legacy/SpigotMessagesInitializer.java b/src/main/java/io/papermc/paper/configuration/legacy/SpigotMessagesInitializer.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..ee6f70a983c7d17071c92ef008764fe706103412
+--- /dev/null
++++ b/src/main/java/io/papermc/paper/configuration/legacy/SpigotMessagesInitializer.java
+@@ -0,0 +1,39 @@
++package io.papermc.paper.configuration.legacy;
++
++import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
++import org.checkerframework.checker.nullness.qual.Nullable;
++import org.spigotmc.SpigotConfig;
++import org.spigotmc.SpigotWorldConfig;
++import org.spongepowered.configurate.ConfigurationNode;
++import org.spongepowered.configurate.objectmapping.meta.NodeResolver;
++import org.spongepowered.configurate.serialize.SerializationException;
++import org.spongepowered.configurate.util.NamingSchemes;
++
++public class SpigotMessagesInitializer implements NodeResolver {
++
++    private final String name;
++    private final SpigotWorldConfig spigotConfig;
++
++    public SpigotMessagesInitializer(String name, SpigotWorldConfig spigotConfig) {
++        this.name = name;
++        this.spigotConfig = spigotConfig;
++        System.out.println("NAME:::::" + name);
++    }
++
++    @Override
++    public @Nullable ConfigurationNode resolve(ConfigurationNode parent) {
++        final String key = NamingSchemes.LOWER_CASE_DASHED.coerce(this.name);
++        final ConfigurationNode node = parent.node(key);
++        final String old = SpigotConfig.whitelistMessage;
++        System.out.println("old: " + old);
++        if (node.virtual() && old != null) {
++            System.out.println("is vrirtual and not null, setting");
++            try {
++                node.set(LegacyComponentSerializer.legacyAmpersand().deserialize(old));
++            } catch (SerializationException e) {
++                throw new RuntimeException(e);
++            }
++        }
++        return node;
++    }
++}
+diff --git a/src/main/java/net/minecraft/server/MinecraftServer.java b/src/main/java/net/minecraft/server/MinecraftServer.java
+index 86f890280bfabac3b14b771ae67d28653ab2e3e8..1168344fd8e24b6df0ddda625ad05c046a0a4306 100644
+--- a/src/main/java/net/minecraft/server/MinecraftServer.java
++++ b/src/main/java/net/minecraft/server/MinecraftServer.java
+@@ -14,6 +14,7 @@ import com.mojang.authlib.GameProfileRepository;
+ import com.mojang.authlib.minecraft.MinecraftSessionService;
+ import com.mojang.datafixers.DataFixer;
+ import com.mojang.logging.LogUtils;
++import io.papermc.paper.configuration.GlobalConfiguration;
+ import it.unimi.dsi.fastutil.longs.LongIterator;
+ import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+ import it.unimi.dsi.fastutil.objects.ObjectArraySet;
+@@ -2478,7 +2479,7 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+                 ServerPlayer entityplayer = (ServerPlayer) iterator.next();
+ 
+                 if (!whitelist.isWhiteListed(entityplayer.getGameProfile()) && !this.getPlayerList().isOp(entityplayer.getGameProfile())) { // Paper - Fix kicking ops when whitelist is reloaded (MC-171420)
+-                    entityplayer.connection.disconnect(net.kyori.adventure.text.Component.text(org.spigotmc.SpigotConfig.whitelistMessage), org.bukkit.event.player.PlayerKickEvent.Cause.WHITELIST); // Paper - use configurable message & kick event cause
++                    entityplayer.connection.disconnect(GlobalConfiguration.get().messages.kick.whitelist, org.bukkit.event.player.PlayerKickEvent.Cause.WHITELIST); // Paper - use configurable message & kick event cause // Paper - add MiniMessage support
+                 }
+             }
+ 
+diff --git a/src/main/java/net/minecraft/server/network/ServerHandshakePacketListenerImpl.java b/src/main/java/net/minecraft/server/network/ServerHandshakePacketListenerImpl.java
+index ddf42645402afefc0f5caebc684b191eef9d6ec2..a306bcf04b768eb36abbeef1837b0fe142f3fea6 100644
+--- a/src/main/java/net/minecraft/server/network/ServerHandshakePacketListenerImpl.java
++++ b/src/main/java/net/minecraft/server/network/ServerHandshakePacketListenerImpl.java
+@@ -1,5 +1,6 @@
+ package net.minecraft.server.network;
+ 
++import io.papermc.paper.configuration.GlobalConfiguration;
+ import net.minecraft.SharedConstants;
+ import net.minecraft.network.Connection;
+ import net.minecraft.network.DisconnectionDetails;
+@@ -119,9 +120,11 @@ public class ServerHandshakePacketListenerImpl implements ServerHandshakePacketL
+                     net.kyori.adventure.text.Component adventureComponent; // Paper - Fix hex colors not working in some kick messages
+ 
+             if (packet.protocolVersion() < SharedConstants.getCurrentVersion().getProtocolVersion()) { // Spigot - SPIGOT-7546: Handle version check correctly for outdated client message
+-                        adventureComponent = net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer.legacySection().deserialize(java.text.MessageFormat.format(org.spigotmc.SpigotConfig.outdatedClientMessage.replaceAll("'", "''"), SharedConstants.getCurrentVersion().getName())); // Spigot // Paper - Fix hex colors not working in some kick messages
++                        // adventureComponent = net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer.legacySection().deserialize(java.text.MessageFormat.format(org.spigotmc.SpigotConfig.outdatedClientMessage.replaceAll("'", "''"), SharedConstants.getCurrentVersion().getName())); // Spigot // Paper - Fix hex colors not working in some kick messages
++                        adventureComponent = GlobalConfiguration.get().messages.kick.outdatedClient.arguments(net.kyori.adventure.text.Component.text(SharedConstants.getCurrentVersion().getName())); // Spigot // Paper - Fix hex colors not working in some kick messages
+             } else {
+-                        adventureComponent = net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer.legacySection().deserialize(java.text.MessageFormat.format(org.spigotmc.SpigotConfig.outdatedServerMessage.replaceAll("'", "''"), SharedConstants.getCurrentVersion().getName())); // Spigot // Paper - Fix hex colors not working in some kick messages
++                        // adventureComponent = net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer.legacySection().deserialize(java.text.MessageFormat.format(org.spigotmc.SpigotConfig.outdatedServerMessage.replaceAll("'", "''"), SharedConstants.getCurrentVersion().getName())); // Spigot // Paper - Fix hex colors not working in some kick messages
++                        adventureComponent = GlobalConfiguration.get().messages.kick.outdatedServer.arguments(net.kyori.adventure.text.Component.text(SharedConstants.getCurrentVersion().getName())); // Spigot // Paper - Fix hex colors not working in some kick messages
+             }
+ 
+                     Component ichatmutablecomponent = io.papermc.paper.adventure.PaperAdventure.asVanilla(adventureComponent); // Paper - Fix hex colors not working in some kick messages
+diff --git a/src/main/java/net/minecraft/server/players/PlayerList.java b/src/main/java/net/minecraft/server/players/PlayerList.java
+index 43eeb8ce4bc350c2b524ade11ca25d8d4d21bea5..f423c97fa3f68148e0a96f96058fb97704511054 100644
+--- a/src/main/java/net/minecraft/server/players/PlayerList.java
++++ b/src/main/java/net/minecraft/server/players/PlayerList.java
+@@ -25,6 +25,7 @@ import java.util.UUID;
+ import java.util.function.Function;
+ import java.util.function.Predicate;
+ import javax.annotation.Nullable;
++import io.papermc.paper.configuration.GlobalConfiguration;
+ import net.minecraft.ChatFormatting;
+ import net.minecraft.FileUtil;
+ import net.minecraft.commands.CommandSourceStack;
+@@ -747,7 +748,8 @@ public abstract class PlayerList {
+         } else {
+             // return this.players.size() >= this.maxPlayers && !this.canBypassPlayerLimit(gameprofile) ? IChatBaseComponent.translatable("multiplayer.disconnect.server_full") : null;
+             if (this.players.size() >= this.maxPlayers && !this.canBypassPlayerLimit(gameprofile)) {
+-                event.disallow(PlayerLoginEvent.Result.KICK_FULL, net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer.legacySection().deserialize(org.spigotmc.SpigotConfig.serverFullMessage)); // Spigot // Paper - Adventure
++                // event.disallow(PlayerLoginEvent.Result.KICK_FULL, net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer.legacySection().deserialize(org.spigotmc.SpigotConfig.serverFullMessage)); // Spigot // Paper - Adventure
++                event.disallow(PlayerLoginEvent.Result.KICK_FULL, GlobalConfiguration.get().messages.kick.serverFull); // Spigot // Paper - Adventure
+             }
+         }
+ 
 diff --git a/src/main/java/net/minecraft/world/level/chunk/storage/ChunkSerializer.java b/src/main/java/net/minecraft/world/level/chunk/storage/ChunkSerializer.java
 index 711541a9b12b823c1da779ed6027a53e9078a733..4bd048387651250135f963303c78c17f8473cfee 100644
 --- a/src/main/java/net/minecraft/world/level/chunk/storage/ChunkSerializer.java
